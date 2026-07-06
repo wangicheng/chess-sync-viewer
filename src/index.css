@@ -34,3 +34,12 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #64748b; 
 }
+
+/* Hide scrollbar utility */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

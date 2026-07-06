@@ -5,7 +5,8 @@ import YouTube from 'react-youtube';
 import type { YouTubeProps } from 'react-youtube';
 import { 
   Settings, Link as LinkIcon, AlertCircle, FileText, Globe, 
-  PlaySquare, Edit3, Check, ChevronLeft, ChevronRight, Clock, Scissors
+  PlaySquare, Edit3, Check, ChevronLeft, ChevronRight, Clock, Scissors,
+  SkipBack, SkipForward, Play, Pause
 } from 'lucide-react';
 import LZString from 'lz-string';
 
@@ -36,6 +37,7 @@ function App() {
   
   const [player, setPlayer] = useState<any>(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [inputVideoId, setInputVideoId] = useState('');
@@ -58,6 +60,9 @@ function App() {
     currentMoveIndex,
     timeMap
   });
+
+  const isSeekingRef = useRef(false);
+  const seekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     stateRef.current = { player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap };
@@ -385,8 +390,14 @@ function App() {
     if (!player) return;
     
     const interval = setInterval(async () => {
+      if (typeof player.getPlayerState === 'function') {
+        setIsPlaying(player.getPlayerState() === 1);
+      }
+
       const time = await player.getCurrentTime();
       setCurrentTime(time);
+      
+      if (isSeekingRef.current) return;
       
       const { history, timeMap } = stateRef.current;
       
@@ -435,9 +446,23 @@ function App() {
     setCurrentMoveIndex(index);
     
     if (stateRef.current.timeMap[index] !== undefined && player) {
+      isSeekingRef.current = true;
+      if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+      
       player.seekTo(stateRef.current.timeMap[index], true);
+      
+      seekTimeoutRef.current = setTimeout(() => {
+        isSeekingRef.current = false;
+      }, 1000);
     }
   };
+
+  useEffect(() => {
+    const el = document.getElementById(`move-btn-${currentMoveIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentMoveIndex]);
 
   const toggleSyncMode = () => {
     const newMode = !isSyncMode;
@@ -448,6 +473,15 @@ function App() {
       setSyncTargetIndex(nextIndex <= history.length ? nextIndex : null);
     } else {
       setSyncTargetIndex(null);
+    }
+  };
+
+  const togglePlay = () => {
+    if (!player || typeof player.getPlayerState !== 'function') return;
+    if (player.getPlayerState() === 1) {
+      player.pauseVideo();
+    } else {
+      player.playVideo();
     }
   };
 
@@ -519,20 +553,31 @@ function App() {
             ChessSync Viewer
           </h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 lg:gap-4">
+          <button
+            onClick={toggleSyncMode}
+            disabled={!player}
+            className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${isSyncMode ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none'}`}
+          >
+            {isSyncMode ? <Check className="w-4 h-4" /> : <PlaySquare className="w-4 h-4" />}
+            <span className="hidden sm:inline">{isSyncMode ? '完成編輯' : '編輯模式'}</span>
+            <span className="sm:hidden">{isSyncMode ? '完成' : '編輯'}</span>
+          </button>
+          
           <button 
             onClick={() => setIsUrlModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"
+            className="flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            設定來源
+            <span className="hidden sm:inline">設定來源</span>
           </button>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
-          <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-xl ring-1 ring-white/10 relative">
+        {/* Left Pane */}
+        <div className="flex-none lg:flex-1 flex flex-col p-2 lg:p-4 gap-2 lg:gap-4 overflow-visible lg:overflow-y-auto z-10 border-b lg:border-b-0 border-slate-700/50 bg-slate-900/90 lg:bg-transparent backdrop-blur-sm">
+          <div className="w-full mx-auto aspect-video bg-black rounded-lg lg:rounded-xl overflow-hidden shadow-xl ring-1 ring-white/10 relative flex-shrink-0">
             {videoId ? (
               <YouTube 
                 videoId={videoId} 
@@ -542,84 +587,79 @@ function App() {
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                <AlertCircle className="w-12 h-12 mb-2 opacity-50" />
-                <p>請設定 YouTube 影片 ID</p>
+                <AlertCircle className="w-8 h-8 lg:w-12 lg:h-12 mb-2 opacity-50" />
+                <p className="text-sm lg:text-base">請設定 YouTube影片ID</p>
               </div>
             )}
           </div>
           
-          <div className={`rounded-xl p-5 shadow-lg ring-1 transition-colors ${isSyncMode ? 'bg-indigo-900/40 ring-indigo-500/50' : 'bg-slate-800 ring-white/5'}`}>
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">播放時間</h3>
-                <div className="text-2xl font-mono text-blue-400">
-                  {formatTime(currentTime)}
+          {isSyncMode && (
+            <div className="p-3 lg:p-4 bg-indigo-950/80 border border-indigo-800/80 rounded-lg flex flex-col xl:flex-row gap-3 xl:gap-4 justify-between flex-shrink-0 shadow-lg ring-1 ring-indigo-500/50">
+              <div className="hidden sm:block">
+                <div className="text-sm text-indigo-300 mb-1">正在錄製/編輯中...</div>
+                <div className="text-xs lg:text-sm text-indigo-100 flex items-center gap-2">
+                  您可以直接在右側棋盤拖曳棋子，或在影片落子時按下空白鍵。
                 </div>
               </div>
-              
-              <button
-                onClick={toggleSyncMode}
-                disabled={!player}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-lg ${isSyncMode ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/20' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20 disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none'}`}
-              >
-                {isSyncMode ? <Check className="w-4 h-4" /> : <PlaySquare className="w-4 h-4" />}
-                {isSyncMode ? '完成標記/錄製' : '進入錄製/編輯模式'}
-              </button>
-            </div>
-            
-            {isSyncMode && (
-              <div className="mt-2 p-4 bg-indigo-950/50 border border-indigo-800/80 rounded-lg flex flex-col sm:flex-row gap-4 justify-between">
-                <div>
-                  <div className="text-sm text-indigo-300 mb-1">正在錄製/編輯中...</div>
-                  <div className="text-sm text-indigo-100 flex items-center gap-2">
-                    您可以直接在右側棋盤拖曳棋子，或在影片落子時按下空白鍵。
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
+              <div className="flex flex-row xl:flex-col gap-2 overflow-x-auto hide-scrollbar">
+                <button 
+                  onClick={updateStartTimeAnchor}
+                  className="flex-shrink-0 flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800/80 text-indigo-300 rounded border border-indigo-800 transition-colors text-xs lg:text-sm whitespace-nowrap"
+                >
+                  <Clock className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
+                  標記當下時間為起點
+                </button>
+                {history.length > 0 && (
                   <button 
-                    onClick={updateStartTimeAnchor}
-                    className="self-start sm:self-end flex items-center gap-2 px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800/80 text-indigo-300 rounded border border-indigo-800 transition-colors text-sm"
+                    onClick={truncateHistory}
+                    className="flex-shrink-0 flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-red-900/50 hover:bg-red-800/80 text-red-300 rounded border border-red-800 transition-colors text-xs lg:text-sm whitespace-nowrap"
                   >
-                    <Clock className="w-4 h-4" />
-                    標記當下影片為棋局起始時間
+                    <Scissors className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
+                    清除此步及之後紀錄
                   </button>
-                  {history.length > 0 && (
-                    <button 
-                      onClick={truncateHistory}
-                      className="self-start sm:self-end flex items-center gap-2 px-3 py-1.5 bg-red-900/50 hover:bg-red-800/80 text-red-300 rounded border border-red-800 transition-colors text-sm"
-                    >
-                      <Scissors className="w-4 h-4" />
-                      清除包含此步及之後的紀錄
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        <div className="w-full lg:w-[450px] xl:w-[500px] flex flex-col border-t lg:border-t-0 lg:border-l border-slate-700 bg-slate-800/50">
-          <div className="p-6 flex-shrink-0 flex items-center justify-center bg-slate-800/80 shadow-inner">
-            <div className={`w-full max-w-[400px] aspect-square transition-all ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`}>
-              <Chessboard options={chessboardOptions} />
+        {/* Right Pane */}
+        <div className="flex-1 lg:flex-none w-full lg:w-[450px] xl:w-[500px] flex flex-col min-h-0 border-l lg:border-t-0 border-slate-700 bg-slate-800/50">
+          <div className="flex-1 min-h-0 p-2 lg:p-6 flex flex-col items-center justify-center bg-slate-800/80 shadow-inner">
+            <div className="flex-1 min-h-0 w-full flex items-center justify-center" style={{ containerType: 'size' }}>
+              <div className={`transition-all flex items-center justify-center ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`} 
+                   style={{ width: '100cqmin', height: '100cqmin' }}>
+                <Chessboard options={chessboardOptions} />
+              </div>
+            </div>
+            
+            <div className="flex-none flex items-center justify-center gap-4 mt-2 lg:mt-4 bg-slate-900/50 rounded-full px-4 py-1.5 lg:py-2 ring-1 ring-white/10">
+              <button onClick={() => jumpToMove(0)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="第一步"><SkipBack className="w-4 h-4 lg:w-5 lg:h-5" /></button>
+              <button onClick={() => jumpToMove(Math.max(0, currentMoveIndex - 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="上一步"><ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" /></button>
+              <button onClick={togglePlay} className="p-2 lg:p-3 text-slate-300 hover:text-white transition-colors bg-blue-600/20 hover:bg-blue-600/40 rounded-full" title="播放 / 暫停">
+                {isPlaying ? <Pause className="w-5 h-5 lg:w-6 lg:h-6" /> : <Play className="w-5 h-5 lg:w-6 lg:h-6" />}
+              </button>
+              <button onClick={() => jumpToMove(Math.min(history.length, currentMoveIndex + 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="下一步"><ChevronRight className="w-5 h-5 lg:w-6 lg:h-6" /></button>
+              <button onClick={() => jumpToMove(history.length)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="最後一步"><SkipForward className="w-4 h-4 lg:w-5 lg:h-5" /></button>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 sticky top-0 bg-slate-800/90 py-2 backdrop-blur-sm z-20 flex justify-between">
+          <div className="flex-none lg:flex-1 h-[72px] lg:h-auto min-h-[72px] lg:min-h-0 overflow-hidden flex flex-col p-2 lg:p-4 custom-scrollbar relative bg-slate-800/90 lg:bg-transparent border-t border-slate-700 lg:border-t-0 shadow-lg lg:shadow-none z-20">
+            <h3 className="hidden lg:flex text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 sticky top-0 bg-slate-800/90 py-2 backdrop-blur-sm z-20 justify-between">
               <span>對局紀錄</span>
             </h3>
             
-            <div className="flex flex-col gap-1 pb-20">
-              <div className="w-full flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mb-2">
-                <div className="flex items-center w-full">
+            <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full h-full lg:h-auto">
+              <div className="flex-shrink-0 w-[180px] lg:w-full flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mb-0 lg:mb-2 h-[42px] lg:h-auto">
+                <div className="flex items-center w-full h-full">
                   <button 
+                    id="move-btn-0"
                     onClick={() => jumpToMove(0)}
-                    className={`flex-1 py-2 px-3 text-left transition-colors flex justify-between items-center ${currentMoveIndex === 0 ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'} ${isSyncMode && syncTargetIndex === 0 ? 'text-indigo-300 font-bold' : ''}`}
+                    className={`flex-1 py-1 lg:py-2 px-2 lg:px-3 text-left transition-colors flex justify-between items-center h-full ${currentMoveIndex === 0 ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'} ${isSyncMode && syncTargetIndex === 0 ? 'text-indigo-300 font-bold' : ''}`}
                   >
-                    <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> 棋局起始時間</span>
-                    {timeMap[0] !== undefined && editingMoveIndex !== 0 && (
-                      <span className="text-xs text-slate-500 font-normal">
+                    <span className="flex items-center gap-1.5 lg:gap-2 whitespace-nowrap text-xs lg:text-sm"><Clock className="w-3.5 h-3.5" /> <span className="hidden lg:inline">棋局起始時間</span><span className="lg:hidden">起點</span></span>
+                    {timeMap[0] !== undefined && isSyncMode && editingMoveIndex !== 0 && (
+                      <span className="text-xs text-slate-500 font-normal ml-2">
                         {formatTime(timeMap[0])}
                       </span>
                     )}
@@ -628,7 +668,7 @@ function App() {
                   {timeMap[0] !== undefined && isSyncMode && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); setEditingMoveIndex(editingMoveIndex === 0 ? null : 0); }}
-                      className={`px-2 py-2 transition-colors ${editingMoveIndex === 0 ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700 opacity-0 group-hover:opacity-100'} group-hover:opacity-100`}
+                      className={`px-2 py-1 lg:py-2 transition-colors ${editingMoveIndex === 0 ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100'} opacity-100 lg:opacity-0`}
                       title={editingMoveIndex === 0 ? "完成微調" : "微調時間"}
                     >
                       {editingMoveIndex === 0 ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
@@ -637,7 +677,7 @@ function App() {
                 </div>
                 
                 {editingMoveIndex === 0 && isSyncMode && (
-                  <div className="bg-slate-900 border-t border-slate-700 p-2 flex flex-col gap-2 shadow-inner">
+                  <div className="absolute lg:relative -top-10 lg:top-0 left-0 lg:left-auto z-20 w-full bg-slate-900 border lg:border-t border-slate-700 p-2 flex flex-col gap-2 shadow-xl lg:shadow-inner rounded lg:rounded-none">
                     <div className="flex items-center justify-between gap-1">
                       <button 
                         onClick={() => {
@@ -670,11 +710,12 @@ function App() {
               </div>
 
             {history.length === 0 ? (
-              <div className="text-center p-8 text-slate-500 border border-dashed border-slate-700 rounded-lg">
-                尚無紀錄。開啟錄製模式並在棋盤上拖曳以開始！
+              <div className="flex-shrink-0 text-center p-4 lg:p-8 text-sm lg:text-base text-slate-500 border border-dashed border-slate-700 rounded-lg h-[42px] lg:h-auto flex items-center justify-center">
+                <span className="hidden lg:inline">尚無紀錄。開啟錄製模式並在棋盤上拖曳以開始！</span>
+                <span className="lg:hidden">尚無紀錄</span>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-1 text-sm font-mono">
+              <div className="flex flex-row lg:grid lg:grid-cols-2 gap-2 lg:gap-1 text-sm font-mono flex-nowrap lg:whitespace-normal w-max lg:w-auto h-full lg:h-auto items-center lg:items-stretch">
                 {Array.from({ length: Math.ceil(history.length / 2) }).map((_, rowIndex) => {
                   const whiteMoveIndex = rowIndex * 2 + 1;
                   const blackMoveIndex = rowIndex * 2 + 2;
@@ -682,7 +723,7 @@ function App() {
                   const blackMove = history[blackMoveIndex - 1];
                   
                   const renderMoveBtn = (move: Move | undefined, mIndex: number) => {
-                    if (!move) return <div className="flex-1" />;
+                    if (!move) return <div className="hidden lg:block lg:flex-1" />;
                     
                     const isTarget = isSyncMode && syncTargetIndex === mIndex;
                     const isCurrent = currentMoveIndex === mIndex;
@@ -690,15 +731,16 @@ function App() {
                     const isEditing = editingMoveIndex === mIndex;
                     
                     return (
-                      <div className={`flex-1 flex flex-col border-l border-slate-700/30 ${isTarget ? 'bg-indigo-900/40 ring-1 ring-indigo-500 inset-0 relative z-10' : ''}`}>
-                        <div className="flex items-center w-full">
+                      <div className={`flex-shrink-0 w-[110px] lg:w-auto lg:flex-1 flex flex-col border-r border-slate-700/30 lg:border-r-0 lg:border-l ${isTarget ? 'bg-indigo-900/40 ring-1 ring-indigo-500 inset-0 relative z-10' : ''} h-full`}>
+                        <div className="flex items-center w-full h-full">
                           <button 
+                            id={`move-btn-${mIndex}`}
                             onClick={() => jumpToMove(mIndex)}
-                            className={`flex-1 py-2 px-3 text-left transition-colors flex justify-between items-center ${isCurrent ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'} ${isTarget ? 'text-indigo-300 font-bold' : ''}`}
+                            className={`w-full py-1.5 lg:py-2 px-2 lg:px-3 text-left transition-colors flex justify-between items-center h-full ${isCurrent ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'} ${isTarget ? 'text-indigo-300 font-bold' : ''}`}
                           >
                             <span>{move.san}</span>
-                            {hasTime && !isEditing && (
-                              <span className="text-xs text-slate-500 font-normal">
+                            {hasTime && isSyncMode && !isEditing && (
+                              <span className="text-xs text-slate-500 font-normal ml-1.5 lg:ml-0">
                                 {formatTime(timeMap[mIndex])}
                               </span>
                             )}
@@ -707,7 +749,7 @@ function App() {
                           {hasTime && isSyncMode && (
                             <button 
                               onClick={(e) => { e.stopPropagation(); setEditingMoveIndex(isEditing ? null : mIndex); }}
-                              className={`px-2 py-2 transition-colors opacity-0 group-hover:opacity-100 ${isEditing ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700'}`}
+                              className={`px-1.5 lg:px-2 py-1.5 lg:py-2 transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100 ${isEditing ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700'}`}
                               title={isEditing ? "完成微調" : "微調時間"}
                             >
                               {isEditing ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
@@ -716,7 +758,7 @@ function App() {
                         </div>
                         
                         {isEditing && isSyncMode && (
-                          <div className="bg-slate-900 border-t border-slate-700 p-2 flex flex-col gap-2 shadow-inner">
+                          <div className="absolute lg:relative -top-10 lg:top-0 left-0 lg:left-auto z-20 w-64 lg:w-auto bg-slate-900 border lg:border-t border-slate-700 p-2 flex flex-col gap-2 shadow-xl lg:shadow-inner rounded lg:rounded-none">
                             <div className="flex items-center justify-between gap-1">
                               <button 
                                 onClick={() => {
@@ -752,8 +794,8 @@ function App() {
                   
                   return (
                     <div key={rowIndex} className="contents group">
-                      <div className="col-span-2 flex border-b border-slate-700/50 hover:bg-slate-700/10">
-                        <div className="w-10 py-2 px-2 text-slate-500 flex-shrink-0 text-right text-xs pt-2.5">
+                      <div className="flex-shrink-0 flex flex-row lg:col-span-2 border border-slate-700/50 lg:border-0 lg:border-b lg:border-slate-700/50 bg-slate-800/20 lg:bg-transparent rounded lg:rounded-none hover:bg-slate-700/10 items-center h-[42px] lg:h-auto">
+                        <div className="w-8 lg:w-10 py-1.5 lg:py-2 px-1 lg:px-2 text-slate-500 flex-shrink-0 text-center lg:text-right text-xs lg:pt-2.5 bg-slate-800/50 lg:bg-transparent h-full flex items-center justify-center border-r border-slate-700/30 lg:border-0">
                           {rowIndex + 1}.
                         </div>
                         {renderMoveBtn(whiteMove, whiteMoveIndex)}
