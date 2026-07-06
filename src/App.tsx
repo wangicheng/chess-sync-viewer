@@ -36,7 +36,6 @@ function App() {
   const [history, setHistory] = useState<Move[]>([]);
   
   const [player, setPlayer] = useState<any>(null);
-  const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
@@ -395,7 +394,6 @@ function App() {
       }
 
       const time = await player.getCurrentTime();
-      setCurrentTime(time);
       
       if (isSeekingRef.current) return;
       
