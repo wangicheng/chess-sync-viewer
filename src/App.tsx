@@ -4,7 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import YouTube from 'react-youtube';
 import type { YouTubeProps } from 'react-youtube';
 import { 
-  Settings, Link as LinkIcon, AlertCircle, FileText, Globe, 
+  Settings, AlertCircle, FileText, Globe, 
   PlaySquare, Edit3, Check, ChevronLeft, ChevronRight, Clock, Scissors,
   SkipBack, SkipForward, Play, Pause
 } from 'lucide-react';
@@ -16,6 +16,111 @@ interface ToastMsg {
   message: string;
   type: ToastType;
 }
+
+export interface ClockSettings {
+  enabled: boolean;
+  initial: number;
+  increment: number;
+  useDifferentForBlack?: boolean;
+  bInitial?: number;
+  bIncrement?: number;
+}
+
+const getClockState = (t: number, timeMap: Record<number, number>, history: Move[], initial: number, increment: number, bInitial?: number, bIncrement?: number) => {
+  let wTime = initial;
+  let bTime = bInitial !== undefined ? bInitial : initial;
+  const wInc = increment;
+  const bInc = bIncrement !== undefined ? bIncrement : increment;
+  
+  if (timeMap[0] === undefined || t < timeMap[0]) {
+    return { wTime, bTime, active: null };
+  }
+  
+  let lastTime = timeMap[0];
+  let i = 1;
+  
+  while (timeMap[i] !== undefined && timeMap[i] <= t) {
+    const dt = timeMap[i] - lastTime;
+    if (i % 2 === 1) {
+      wTime = wTime - dt + wInc;
+    } else {
+      bTime = bTime - dt + bInc;
+    }
+    lastTime = timeMap[i];
+    i++;
+  }
+  
+  const dt = t - lastTime;
+  let isGameOver = false;
+  if (i - 1 === history.length && history.length > 0) {
+    const lastMove = history[history.length - 1].san;
+    if (lastMove.includes('#')) isGameOver = true;
+  }
+  
+  if (!isGameOver && dt > 0) {
+    if (i % 2 === 1) {
+      wTime -= dt;
+    } else {
+      bTime -= dt;
+    }
+  }
+  
+  return { wTime, bTime, active: isGameOver ? null : (i % 2 === 1 ? 'white' : 'black') };
+};
+
+const ClockInfo = ({ player, timeMap, history, settings, color }: { player: any, timeMap: Record<number, number>, history: Move[], settings: ClockSettings, color: 'white' | 'black' }) => {
+  const [time, setTime] = useState(settings.initial);
+  const [isActive, setIsActive] = useState(false);
+  
+  useEffect(() => {
+    if (!settings.enabled || !player) {
+      setTime(settings.initial);
+      setIsActive(false);
+      return;
+    }
+    
+    let isUnmounted = false;
+    const interval = setInterval(async () => {
+      if (isUnmounted) return;
+      try {
+        const t = await Promise.resolve(player.getCurrentTime());
+        const { wTime, bTime, active } = getClockState(
+          t, timeMap, history, 
+          settings.initial, settings.increment,
+          settings.useDifferentForBlack ? settings.bInitial : undefined,
+          settings.useDifferentForBlack ? settings.bIncrement : undefined
+        );
+        setTime(color === 'white' ? wTime : bTime);
+        setIsActive(active === color);
+      } catch (e) {}
+    }, 100);
+    
+    return () => {
+      isUnmounted = true;
+      clearInterval(interval);
+    };
+  }, [player, timeMap, history, settings, color]);
+  
+  if (!settings.enabled) return null;
+  
+  const formatClock = (seconds: number) => {
+    const maxZero = Math.max(0, seconds);
+    const m = Math.floor(maxZero / 60);
+    const s = Math.floor(maxZero % 60);
+    const ms = Math.floor((maxZero % 1) * 10);
+    if (m > 0) {
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    } else {
+      return `${s}.${ms}`;
+    }
+  };
+  
+  return (
+    <div className={`font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors ${isActive ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500 shadow-amber-900/20' : 'bg-slate-900/80 text-slate-400 border border-slate-700/50'}`}>
+      {formatClock(time)}
+    </div>
+  );
+};
 
 function App() {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
@@ -45,10 +150,28 @@ function App() {
   const [inputPgnUrl, setInputPgnUrl] = useState('');
   const [inputRawPgn, setInputRawPgn] = useState('');
 
+  const [activeTab, setActiveTab] = useState<'source' | 'clock'>('source');
+
   const [timeMap, setTimeMap] = useState<Record<number, number>>({});
   const [isSyncMode, setIsSyncMode] = useState(false);
   const [syncTargetIndex, setSyncTargetIndex] = useState<number | null>(null);
   const [editingMoveIndex, setEditingMoveIndex] = useState<number | null>(null);
+  
+  const [clockSettings, setClockSettings] = useState<ClockSettings>(() => {
+    const saved = localStorage.getItem('chessSyncClockSettings');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return { enabled: false, initial: 300, increment: 5 };
+  });
+
+  const updateClockSettings = useCallback((newSettings: Partial<ClockSettings>) => {
+    setClockSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      localStorage.setItem('chessSyncClockSettings', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
   
   const stateRef = useRef({
     player,
@@ -567,7 +690,7 @@ function App() {
             className="flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"
           >
             <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">設定來源</span>
+            <span className="hidden sm:inline">設定</span>
           </button>
         </div>
       </header>
@@ -625,9 +748,33 @@ function App() {
         <div className="flex-1 lg:flex-none w-full lg:w-[450px] xl:w-[500px] flex flex-col min-h-0 border-l lg:border-t-0 border-slate-700 bg-slate-800/50">
           <div className="flex-1 min-h-0 p-2 lg:p-6 flex flex-col items-center justify-center bg-slate-800/80 shadow-inner">
             <div className="flex-1 min-h-0 w-full flex items-center justify-center" style={{ containerType: 'size' }}>
-              <div className={`transition-all flex items-center justify-center ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`} 
-                   style={{ width: '100cqmin', height: '100cqmin' }}>
-                <Chessboard options={chessboardOptions} />
+              <div 
+                className="flex flex-col justify-center items-center h-full transition-all"
+                style={{ width: clockSettings.enabled ? 'min(100cqw, calc(100cqh - 4rem))' : '100cqmin' }}
+              >
+                {clockSettings.enabled && (
+                  <div className="flex justify-between items-end pb-1 lg:pb-2 px-2 flex-shrink-0 w-full">
+                    <div className="flex items-center gap-2 lg:gap-3">
+                       <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-800 rounded shadow border border-slate-700"></div>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">Black</span>
+                    </div>
+                    <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="black" />
+                  </div>
+                )}
+                
+                <div className={`transition-all flex items-center justify-center flex-shrink-0 w-full aspect-square ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`}>
+                  <Chessboard options={chessboardOptions} />
+                </div>
+                
+                {clockSettings.enabled && (
+                  <div className="flex justify-between items-start pt-1 lg:pt-2 px-2 flex-shrink-0 w-full">
+                    <div className="flex items-center gap-2 lg:gap-3">
+                       <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-200 rounded shadow border border-slate-300"></div>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">White</span>
+                    </div>
+                    <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="white" />
+                  </div>
+                )}
               </div>
             </div>
             
@@ -813,62 +960,167 @@ function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <LinkIcon className="w-5 h-5 text-blue-400" />
-              載入來源
+              <Settings className="w-5 h-5 text-blue-400" />
+              設定
             </h2>
+            <div className="flex border-b border-slate-700 mb-6">
+              <button 
+                onClick={() => setActiveTab('source')}
+                className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'source' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
+              >
+                影片與來源
+              </button>
+              <button 
+                onClick={() => setActiveTab('clock')}
+                className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'clock' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
+              >
+                棋鐘
+              </button>
+            </div>
             
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">YouTube 影片 ID 或網址</label>
-                <input 
-                  type="text" 
-                  value={inputVideoId}
-                  onChange={(e) => setInputVideoId(e.target.value)}
-                  placeholder="e.g. dQw4w9WgXcQ 或完整網址"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <hr className="border-slate-700" />
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-3">PGN 載入方式</label>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button 
-                    onClick={() => setInputType('raw')}
-                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'raw' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                  >
-                    <FileText className="w-4 h-4" />
-                    手動輸入/錄製
-                  </button>
-                  <button 
-                    onClick={() => setInputType('url')}
-                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                  >
-                    <Globe className="w-4 h-4" />
-                    使用外部網址
-                  </button>
+            <div className="space-y-6">
+              {activeTab === 'source' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">YouTube 影片 ID 或網址</label>
+                    <input 
+                      type="text" 
+                      value={inputVideoId}
+                      onChange={(e) => setInputVideoId(e.target.value)}
+                      placeholder="e.g. dQw4w9WgXcQ 或完整網址"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <hr className="border-slate-700" />
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-3">PGN 載入方式</label>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <button 
+                        onClick={() => setInputType('raw')}
+                        className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'raw' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                      >
+                        <FileText className="w-4 h-4" />
+                        手動輸入/錄製
+                      </button>
+                      <button 
+                        onClick={() => setInputType('url')}
+                        className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                      >
+                        <Globe className="w-4 h-4" />
+                        使用外部網址
+                      </button>
+                    </div>
+                    
+                    {inputType === 'raw' ? (
+                      <textarea 
+                        value={inputRawPgn}
+                        onChange={(e) => setInputRawPgn(e.target.value)}
+                        placeholder="在此貼上 PGN，留白則會從零開始錄製..."
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none custom-scrollbar font-mono text-sm"
+                      />
+                    ) : (
+                      <input 
+                        type="text" 
+                        value={inputPgnUrl}
+                        onChange={(e) => setInputPgnUrl(e.target.value)}
+                        placeholder="https://... (需支援 CORS)"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    )}
+                  </div>
                 </div>
-                
-                {inputType === 'raw' ? (
-                  <textarea 
-                    value={inputRawPgn}
-                    onChange={(e) => setInputRawPgn(e.target.value)}
-                    placeholder="在此貼上 PGN，留白則會從零開始錄製..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none custom-scrollbar font-mono text-sm"
-                  />
-                ) : (
-                  <input 
-                    type="text" 
-                    value={inputPgnUrl}
-                    onChange={(e) => setInputPgnUrl(e.target.value)}
-                    placeholder="https://... (需支援 CORS)"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-              </div>
+              )}
               
-              <div className="pt-2 flex justify-end gap-3">
+              {activeTab === 'clock' && (
+                <div className="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={clockSettings.enabled}
+                      onChange={(e) => updateClockSettings({ enabled: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-slate-300">顯示並計算雙方剩餘時間</span>
+                  </label>
+                  
+                  <div className={`transition-opacity duration-200 ${clockSettings.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                    <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-700/50">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? '白方' : ''}初始時間 (分鐘)</label>
+                        <input 
+                          type="number" 
+                          min="0.5"
+                          step="0.5"
+                          value={Math.round((clockSettings.initial / 60) * 10) / 10}
+                          onChange={(e) => updateClockSettings({ initial: Math.max(0.5, parseFloat(e.target.value) || 1) * 60 })}
+                          disabled={!clockSettings.enabled}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 disabled:text-slate-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? '白方' : ''}每步加時 (秒)</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          value={clockSettings.increment}
+                          onChange={(e) => updateClockSettings({ increment: Math.max(0, parseInt(e.target.value) || 0) })}
+                          disabled={!clockSettings.enabled}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 disabled:text-slate-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <label className="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-slate-300 transition-colors w-max">
+                        <input 
+                          type="checkbox" 
+                          checked={clockSettings.useDifferentForBlack || false}
+                          onChange={(e) => updateClockSettings({ 
+                            useDifferentForBlack: e.target.checked,
+                            bInitial: e.target.checked ? clockSettings.initial : undefined,
+                            bIncrement: e.target.checked ? clockSettings.increment : undefined
+                          })}
+                          disabled={!clockSettings.enabled}
+                          className="w-3.5 h-3.5 text-slate-500 bg-slate-800 border-slate-600 rounded focus:ring-slate-500"
+                        />
+                        <span className="text-xs font-medium">設定雙方不同時間</span>
+                      </label>
+                    </div>
+                    
+                    {clockSettings.useDifferentForBlack && (
+                      <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-700/50">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">黑方初始時間 (分鐘)</label>
+                          <input 
+                            type="number" 
+                            min="0.5"
+                            step="0.5"
+                            value={Math.round(((clockSettings.bInitial !== undefined ? clockSettings.bInitial : clockSettings.initial) / 60) * 10) / 10}
+                            onChange={(e) => updateClockSettings({ bInitial: Math.max(0.5, parseFloat(e.target.value) || 1) * 60 })}
+                            disabled={!clockSettings.enabled}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 disabled:text-slate-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">黑方每步加時 (秒)</label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            value={clockSettings.bIncrement !== undefined ? clockSettings.bIncrement : clockSettings.increment}
+                            onChange={(e) => updateClockSettings({ bIncrement: Math.max(0, parseInt(e.target.value) || 0) })}
+                            disabled={!clockSettings.enabled}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 disabled:text-slate-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              <div className="pt-2 flex justify-end gap-3 border-t border-slate-700/50 mt-4">
                 {(videoId || pgnUrl || pgnString) && (
                   <button 
                     onClick={() => setIsUrlModalOpen(false)}
