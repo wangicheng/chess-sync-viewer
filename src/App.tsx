@@ -116,7 +116,7 @@ const ClockInfo = ({ player, timeMap, history, settings, color }: { player: any,
   };
   
   return (
-    <div className={`font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors ${isActive ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500 shadow-amber-900/20' : 'bg-slate-900/80 text-slate-400 border border-slate-700/50'}`}>
+    <div className={`font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border ${isActive ? 'bg-amber-500/20 text-amber-400 border-amber-500 ring-1 ring-amber-500 shadow-amber-900/20' : 'bg-slate-900/80 text-slate-400 border-slate-700/50'}`}>
       {formatClock(time)}
     </div>
   );
@@ -667,9 +667,7 @@ function App() {
     <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-slate-200">
       <header className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700 shadow-md z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold">
-            CS
-          </div>
+          <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300 hidden sm:block">
             ChessSync Viewer
           </h1>
@@ -687,10 +685,10 @@ function App() {
           
           <button 
             onClick={() => setIsUrlModalOpen(true)}
-            className="flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors"
+            className="flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm"
           >
             <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">設定</span>
+            <span>設定</span>
           </button>
         </div>
       </header>
@@ -756,7 +754,7 @@ function App() {
                   <div className="flex justify-between items-end pb-1 lg:pb-2 px-2 flex-shrink-0 w-full">
                     <div className="flex items-center gap-2 lg:gap-3">
                        <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-800 rounded shadow border border-slate-700"></div>
-                       <span className="font-semibold text-slate-300 text-sm lg:text-base">Black</span>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(game.header().Black && game.header().Black !== '?') ? game.header().Black : 'Black'}</span>
                     </div>
                     <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="black" />
                   </div>
@@ -770,7 +768,7 @@ function App() {
                   <div className="flex justify-between items-start pt-1 lg:pt-2 px-2 flex-shrink-0 w-full">
                     <div className="flex items-center gap-2 lg:gap-3">
                        <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-200 rounded shadow border border-slate-300"></div>
-                       <span className="font-semibold text-slate-300 text-sm lg:text-base">White</span>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(game.header().White && game.header().White !== '?') ? game.header().White : 'White'}</span>
                     </div>
                     <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="white" />
                   </div>
