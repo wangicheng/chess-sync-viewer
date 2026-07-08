@@ -281,7 +281,7 @@ function App() {
       }
     } catch (e) {
       console.error('Failed to parse PGN', e);
-      showToast('無效的 PGN 格式，請檢查。', 'error');
+      showToast('Invalid PGN format, please check.', 'error');
     }
   };
 
@@ -383,7 +383,7 @@ function App() {
 
       if (move === null) {
         console.warn('Invalid move from', sourceSquare, 'to', targetSquare);
-        showToast(`無效棋步: ${sourceSquare} 到 ${targetSquare}`, 'error');
+        showToast(`Invalid move: ${sourceSquare} to ${targetSquare}`, 'error');
         return false;
       }
 
@@ -419,7 +419,7 @@ function App() {
       return true;
     } catch (e: any) {
       console.warn('Invalid move:', e.message);
-      showToast(`無法走棋: ${e.message}`, 'error');
+      showToast(`Cannot make move: ${e.message}`, 'error');
       return false; // Invalid move
     }
   }, [showToast]);
@@ -429,7 +429,7 @@ function App() {
     const { pgnString, currentMoveIndex, history, timeMap } = stateRef.current;
     if (history.length === 0) return;
     
-    if (!window.confirm('確定要清除包含此步及之後的所有棋步與標記嗎？')) return;
+    if (!window.confirm('Are you sure you want to clear this move and all subsequent moves and markers?')) return;
     
     const rebuiltGame = new Chess();
     if (pgnString) rebuiltGame.loadPgn(pgnString);
@@ -470,7 +470,7 @@ function App() {
     updateUrlWithNewPgn(newPgn);
     
     setTimeMap(prev => ({ ...prev, 0: time }));
-    showToast('已標記棋局起始時間！', 'success');
+    showToast('Game start time marked!', 'success');
   };
 
   // Keyboard shortcut for Sync Mode (Spacebar)
@@ -493,7 +493,7 @@ function App() {
         } else {
           setSyncTargetIndex(null);
           setIsSyncMode(false);
-          showToast('已標記！', 'success');
+          showToast('Marked!', 'success');
         }
       }
     };
@@ -541,7 +541,7 @@ function App() {
         loadGameFromPgn(text);
       } catch (error) {
         console.error('Error fetching PGN:', error);
-        showToast('載入 PGN 失敗。', 'error');
+        showToast('Failed to load PGN.', 'error');
       }
     };
     fetchPgn();
@@ -670,7 +670,7 @@ function App() {
       if (inputRawPgn) {
         const compressed = LZString.compressToEncodedURIComponent(inputRawPgn);
         if (compressed.length > 1800) {
-          showToast('警告：您貼上的 PGN 過長，產生的分享連結可能會在某些瀏覽器中失效。', 'error');
+          showToast('Warning: The pasted PGN is too long, the generated share link may fail in some browsers.', 'error');
         }
         url.searchParams.set('data', compressed);
         loadGameFromPgn(inputRawPgn);
@@ -735,8 +735,8 @@ function App() {
             className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${engineSettings.enabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 shadow-none'}`}
           >
             <Activity className="w-4 h-4" />
-            <span className="hidden sm:inline">引擎分析</span>
-            <span className="sm:hidden">引擎</span>
+            <span className="hidden sm:inline">Engine Analysis</span>
+            <span className="sm:hidden">Engine</span>
           </button>
 
           <button
@@ -745,8 +745,8 @@ function App() {
             className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${isSyncMode ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none'}`}
           >
             {isSyncMode ? <Check className="w-4 h-4" /> : <PlaySquare className="w-4 h-4" />}
-            <span className="hidden sm:inline">{isSyncMode ? '完成編輯' : '編輯模式'}</span>
-            <span className="sm:hidden">{isSyncMode ? '完成' : '編輯'}</span>
+            <span className="hidden sm:inline">{isSyncMode ? 'Finish Editing' : 'Edit Mode'}</span>
+            <span className="sm:hidden">{isSyncMode ? 'Finish' : 'Edit'}</span>
           </button>
           
           <button 
@@ -754,7 +754,7 @@ function App() {
             className="flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm"
           >
             <Settings className="w-4 h-4" />
-            <span>設定</span>
+            <span>Settings</span>
           </button>
         </div>
       </header>
@@ -773,7 +773,7 @@ function App() {
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
                 <AlertCircle className="w-8 h-8 lg:w-12 lg:h-12 mb-2 opacity-50" />
-                <p className="text-sm lg:text-base">請設定 YouTube影片ID</p>
+                <p className="text-sm lg:text-base">Please set YouTube Video ID</p>
               </div>
             )}
           </div>
@@ -781,9 +781,9 @@ function App() {
           {isSyncMode && (
             <div className="p-3 lg:p-4 bg-indigo-950/80 border border-indigo-800/80 rounded-lg flex flex-col xl:flex-row gap-3 xl:gap-4 justify-between flex-shrink-0 shadow-lg ring-1 ring-indigo-500/50">
               <div className="hidden sm:block">
-                <div className="text-sm text-indigo-300 mb-1">正在錄製/編輯中...</div>
+                <div className="text-sm text-indigo-300 mb-1">Recording/Editing...</div>
                 <div className="text-xs lg:text-sm text-indigo-100 flex items-center gap-2">
-                  您可以直接在右側棋盤拖曳棋子，或在影片落子時按下空白鍵。
+                  You can drag pieces directly on the board, or press Spacebar when a move is made in the video.
                 </div>
               </div>
               <div className="flex flex-row xl:flex-col gap-2 overflow-x-auto hide-scrollbar">
@@ -792,7 +792,7 @@ function App() {
                   className="flex-shrink-0 flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-indigo-900/50 hover:bg-indigo-800/80 text-indigo-300 rounded border border-indigo-800 transition-colors text-xs lg:text-sm whitespace-nowrap"
                 >
                   <Clock className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
-                  標記當下時間為起點
+                  Mark current time as start
                 </button>
                 {history.length > 0 && (
                   <button 
@@ -800,7 +800,7 @@ function App() {
                     className="flex-shrink-0 flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-red-900/50 hover:bg-red-800/80 text-red-300 rounded border border-red-800 transition-colors text-xs lg:text-sm whitespace-nowrap"
                   >
                     <Scissors className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
-                    清除此步及之後紀錄
+                    Clear this and subsequent moves
                   </button>
                 )}
               </div>
@@ -850,19 +850,19 @@ function App() {
             </div>
             
             <div className="flex-none flex items-center justify-center gap-4 mt-2 lg:mt-4 bg-slate-900/50 rounded-full px-4 py-1.5 lg:py-2 ring-1 ring-white/10">
-              <button onClick={() => jumpToMove(0)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="第一步"><SkipBack className="w-4 h-4 lg:w-5 lg:h-5" /></button>
-              <button onClick={() => jumpToMove(Math.max(0, currentMoveIndex - 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="上一步"><ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" /></button>
-              <button onClick={togglePlay} className="p-2 lg:p-3 text-slate-300 hover:text-white transition-colors bg-blue-600/20 hover:bg-blue-600/40 rounded-full" title="播放 / 暫停">
+              <button onClick={() => jumpToMove(0)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="First Move"><SkipBack className="w-4 h-4 lg:w-5 lg:h-5" /></button>
+              <button onClick={() => jumpToMove(Math.max(0, currentMoveIndex - 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="Previous Move"><ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" /></button>
+              <button onClick={togglePlay} className="p-2 lg:p-3 text-slate-300 hover:text-white transition-colors bg-blue-600/20 hover:bg-blue-600/40 rounded-full" title="Play / Pause">
                 {isPlaying ? <Pause className="w-5 h-5 lg:w-6 lg:h-6" /> : <Play className="w-5 h-5 lg:w-6 lg:h-6" />}
               </button>
-              <button onClick={() => jumpToMove(Math.min(history.length, currentMoveIndex + 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="下一步"><ChevronRight className="w-5 h-5 lg:w-6 lg:h-6" /></button>
-              <button onClick={() => jumpToMove(history.length)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="最後一步"><SkipForward className="w-4 h-4 lg:w-5 lg:h-5" /></button>
+              <button onClick={() => jumpToMove(Math.min(history.length, currentMoveIndex + 1))} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="Next Move"><ChevronRight className="w-5 h-5 lg:w-6 lg:h-6" /></button>
+              <button onClick={() => jumpToMove(history.length)} className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors" title="Last Move"><SkipForward className="w-4 h-4 lg:w-5 lg:h-5" /></button>
             </div>
           </div>
           
           <div className="flex-none lg:flex-1 h-[72px] lg:h-auto min-h-[72px] lg:min-h-0 overflow-hidden flex flex-col p-2 lg:p-4 custom-scrollbar relative bg-slate-800/90 lg:bg-transparent border-t border-slate-700 lg:border-t-0 shadow-lg lg:shadow-none z-20">
             <h3 className="hidden lg:flex text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 sticky top-0 bg-slate-800/90 py-2 backdrop-blur-sm z-20 justify-between">
-              <span>對局紀錄</span>
+              <span>Game Record</span>
             </h3>
             
             <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full h-full lg:h-auto">
@@ -873,7 +873,7 @@ function App() {
                     onClick={() => jumpToMove(0)}
                     className={`flex-1 py-1 lg:py-2 px-2 lg:px-3 text-left transition-colors flex justify-between items-center h-full ${currentMoveIndex === 0 ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'} ${isSyncMode && syncTargetIndex === 0 ? 'text-indigo-300 font-bold' : ''}`}
                   >
-                    <span className="flex items-center gap-1.5 lg:gap-2 whitespace-nowrap text-xs lg:text-sm"><Clock className="w-3.5 h-3.5" /> <span className="hidden lg:inline">棋局起始時間</span><span className="lg:hidden">起點</span></span>
+                    <span className="flex items-center gap-1.5 lg:gap-2 whitespace-nowrap text-xs lg:text-sm"><Clock className="w-3.5 h-3.5" /> <span className="hidden lg:inline">Game Start Time</span><span className="lg:hidden">Start</span></span>
                     {timeMap[0] !== undefined && isSyncMode && editingMoveIndex !== 0 && (
                       <span className="text-xs text-slate-500 font-normal ml-2">
                         {formatTime(timeMap[0])}
@@ -885,7 +885,7 @@ function App() {
                     <button 
                       onClick={(e) => { e.stopPropagation(); setEditingMoveIndex(editingMoveIndex === 0 ? null : 0); }}
                       className={`px-2 py-1 lg:py-2 transition-colors ${editingMoveIndex === 0 ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100'} opacity-100 lg:opacity-0`}
-                      title={editingMoveIndex === 0 ? "完成微調" : "微調時間"}
+                      title={editingMoveIndex === 0 ? "Finish Adjustment" : "Adjust Time"}
                     >
                       {editingMoveIndex === 0 ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
                     </button>
@@ -927,8 +927,8 @@ function App() {
 
             {history.length === 0 ? (
               <div className="flex-shrink-0 text-center p-4 lg:p-8 text-sm lg:text-base text-slate-500 border border-dashed border-slate-700 rounded-lg h-[42px] lg:h-auto flex items-center justify-center">
-                <span className="hidden lg:inline">尚無紀錄。開啟錄製模式並在棋盤上拖曳以開始！</span>
-                <span className="lg:hidden">尚無紀錄</span>
+                <span className="hidden lg:inline">No records yet. Enable recording mode and drag pieces to start!</span>
+                <span className="lg:hidden">No records</span>
               </div>
             ) : (
               <div className="flex flex-row lg:grid lg:grid-cols-2 gap-2 lg:gap-1 text-sm font-mono flex-nowrap lg:whitespace-normal w-max lg:w-auto h-full lg:h-auto items-center lg:items-stretch">
@@ -966,7 +966,7 @@ function App() {
                             <button 
                               onClick={(e) => { e.stopPropagation(); setEditingMoveIndex(isEditing ? null : mIndex); }}
                               className={`px-1.5 lg:px-2 py-1.5 lg:py-2 transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100 ${isEditing ? 'text-green-400 opacity-100' : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700'}`}
-                              title={isEditing ? "完成微調" : "微調時間"}
+                              title={isEditing ? "Finish Adjustment" : "Adjust Time"}
                             >
                               {isEditing ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
                             </button>
@@ -1032,26 +1032,26 @@ function App() {
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Settings className="w-5 h-5 text-blue-400" />
-              設定
+              Settings
             </h2>
             <div className="flex border-b border-slate-700 mb-6">
               <button 
                 onClick={() => setActiveTab('source')}
                 className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'source' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
               >
-                影片與來源
+                Video & Source
               </button>
               <button 
                 onClick={() => setActiveTab('clock')}
                 className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'clock' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
               >
-                棋鐘
+                Clock
               </button>
               <button 
                 onClick={() => setActiveTab('engine')}
                 className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'engine' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
               >
-                引擎分析
+                Engine Analysis
               </button>
             </div>
             
@@ -1059,12 +1059,12 @@ function App() {
               {activeTab === 'source' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">YouTube 影片 ID 或網址</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">YouTube Video ID or URL</label>
                     <input 
                       type="text" 
                       value={inputVideoId}
                       onChange={(e) => setInputVideoId(e.target.value)}
-                      placeholder="e.g. dQw4w9WgXcQ 或完整網址"
+                      placeholder="e.g. dQw4w9WgXcQ or full URL"
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -1072,21 +1072,21 @@ function App() {
                   <hr className="border-slate-700" />
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-3">PGN 載入方式</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-3">PGN Loading Method</label>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                       <button 
                         onClick={() => setInputType('raw')}
                         className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'raw' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
                       >
                         <FileText className="w-4 h-4" />
-                        手動輸入/錄製
+                        Manual
                       </button>
                       <button 
                         onClick={() => setInputType('url')}
                         className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
                       >
                         <Globe className="w-4 h-4" />
-                        使用外部網址
+                        Use External URL
                       </button>
                     </div>
                     
@@ -1094,7 +1094,7 @@ function App() {
                       <textarea 
                         value={inputRawPgn}
                         onChange={(e) => setInputRawPgn(e.target.value)}
-                        placeholder="在此貼上 PGN，留白則會從零開始錄製..."
+                        placeholder="Paste PGN here, leave blank to start recording from scratch..."
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none custom-scrollbar font-mono text-sm"
                       />
                     ) : (
@@ -1102,7 +1102,7 @@ function App() {
                         type="text" 
                         value={inputPgnUrl}
                         onChange={(e) => setInputPgnUrl(e.target.value)}
-                        placeholder="https://... (需支援 CORS)"
+                        placeholder="https://... (requires CORS support)"
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     )}
@@ -1119,13 +1119,13 @@ function App() {
                       onChange={(e) => updateClockSettings({ enabled: e.target.checked })}
                       className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-slate-300">顯示並計算雙方剩餘時間</span>
+                    <span className="text-sm font-medium text-slate-300">Show and calculate remaining time</span>
                   </label>
                   
                   <div className={`transition-opacity duration-200 ${clockSettings.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                     <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-700/50">
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? '白方' : ''}初始時間 (分鐘)</label>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? 'White ' : ''}Initial Time (minutes)</label>
                         <input 
                           type="number" 
                           min="0.5"
@@ -1137,7 +1137,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? '白方' : ''}每步加時 (秒)</label>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">{clockSettings.useDifferentForBlack ? 'White ' : ''}Increment (seconds)</label>
                         <input 
                           type="number" 
                           min="0"
@@ -1162,14 +1162,14 @@ function App() {
                           disabled={!clockSettings.enabled}
                           className="w-3.5 h-3.5 text-slate-500 bg-slate-800 border-slate-600 rounded focus:ring-slate-500"
                         />
-                        <span className="text-xs font-medium">設定雙方不同時間</span>
+                        <span className="text-xs font-medium">Set different time for Black</span>
                       </label>
                     </div>
                     
                     {clockSettings.useDifferentForBlack && (
                       <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-700/50">
                         <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">黑方初始時間 (分鐘)</label>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Black Initial Time (minutes)</label>
                           <input 
                             type="number" 
                             min="0.5"
@@ -1181,7 +1181,7 @@ function App() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-400 mb-1">黑方每步加時 (秒)</label>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Black Increment (seconds)</label>
                           <input 
                             type="number" 
                             min="0"
@@ -1206,7 +1206,7 @@ function App() {
                       onChange={(e) => updateEngineSettings({ enabled: e.target.checked })}
                       className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-slate-300">啟用引擎分析 (顯示評估條)</span>
+                    <span className="text-sm font-medium text-slate-300">Enable Engine Analysis (Show Evaluation Bar)</span>
                   </label>
                   
                   <div className={`transition-opacity duration-200 ${engineSettings.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
@@ -1217,7 +1217,7 @@ function App() {
                         onChange={(e) => updateEngineSettings({ showArrow: e.target.checked })}
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
                       />
-                      <span className="text-sm font-medium text-slate-300">在棋盤上顯示最佳走法箭頭</span>
+                      <span className="text-sm font-medium text-slate-300">Show best move arrow on board</span>
                     </label>
                   </div>
                 </div>
@@ -1229,14 +1229,14 @@ function App() {
                     onClick={() => setIsUrlModalOpen(false)}
                     className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-700 transition-colors"
                   >
-                    取消
+                    Cancel
                   </button>
                 )}
                 <button 
                   onClick={handleApplyUrl}
                   className="px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-lg shadow-blue-900/20"
                 >
-                  確認載入
+                  Save
                 </button>
               </div>
             </div>
