@@ -152,7 +152,7 @@ function App() {
   const [inputPgnUrl, setInputPgnUrl] = useState('');
   const [inputRawPgn, setInputRawPgn] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine'>('source');
+  const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board'>('source');
 
   const [timeMap, setTimeMap] = useState<Record<number, number>>({});
   const [isSyncMode, setIsSyncMode] = useState(false);
@@ -187,6 +187,22 @@ function App() {
     setEngineSettings(prev => {
       const updated = { ...prev, ...newSettings };
       localStorage.setItem('chessSyncEngineSettings', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const [boardSettings, setBoardSettings] = useState<{orientation: 'white' | 'black'}>(() => {
+    const saved = localStorage.getItem('chessSyncBoardSettings');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return { orientation: 'white' };
+  });
+
+  const updateBoardSettings = useCallback((newSettings: Partial<{orientation: 'white' | 'black'}>) => {
+    setBoardSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      localStorage.setItem('chessSyncBoardSettings', JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -716,9 +732,11 @@ function App() {
       allowDragging: isSyncMode,
       darkSquareStyle: { backgroundColor: '#475569' },
       lightSquareStyle: { backgroundColor: '#94a3b8' },
-      arrows: arrows
+      arrows: arrows,
+      boardOrientation: boardSettings.orientation,
+      showNotation: false
     };
-  }, [game.fen(), isSyncMode, handlePieceDrop, arrows]);
+  }, [game.fen(), isSyncMode, handlePieceDrop, arrows, boardSettings.orientation]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-slate-200">
@@ -829,7 +847,7 @@ function App() {
                 <div className="flex flex-row items-stretch justify-center w-full">
                   {engineSettings.enabled && (
                      <div className="flex-shrink-0 mr-1.5 lg:mr-2 py-[2%] min-w-[16px] sm:min-w-[24px]">
-                        <EvalBar score={engineScore} />
+                        <EvalBar score={engineScore} orientation={boardSettings.orientation} />
                      </div>
                   )}
                   <div className={`transition-all flex items-center justify-center flex-1 min-w-0 aspect-square ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`}>
@@ -1053,6 +1071,12 @@ function App() {
               >
                 Engine Analysis
               </button>
+              <button 
+                onClick={() => setActiveTab('board')}
+                className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'board' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
+              >
+                Board
+              </button>
             </div>
             
             <div className="space-y-6">
@@ -1218,6 +1242,36 @@ function App() {
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
                       />
                       <span className="text-sm font-medium text-slate-300">Show best move arrow on board</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'board' && (
+                <div className="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <h3 className="text-sm font-medium text-slate-300 mb-2">Board Orientation</h3>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="boardOrientation"
+                        value="white"
+                        checked={boardSettings.orientation === 'white'}
+                        onChange={() => updateBoardSettings({ orientation: 'white' })}
+                        className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-300">White at bottom</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="boardOrientation"
+                        value="black"
+                        checked={boardSettings.orientation === 'black'}
+                        onChange={() => updateBoardSettings({ orientation: 'black' })}
+                        className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-300">Black at bottom</span>
                     </label>
                   </div>
                 </div>
