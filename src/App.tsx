@@ -6,9 +6,11 @@ import type { YouTubeProps } from 'react-youtube';
 import { 
   Settings, AlertCircle, FileText, Globe, 
   PlaySquare, Edit3, Check, ChevronLeft, ChevronRight, Clock, Scissors,
-  SkipBack, SkipForward, Play, Pause
+  SkipBack, SkipForward, Play, Pause, Activity
 } from 'lucide-react';
 import LZString from 'lz-string';
+import { StockfishManager, type EngineScore } from './engine/StockfishManager';
+import { EvalBar } from './components/EvalBar';
 
 type ToastType = 'success' | 'error' | 'info';
 interface ToastMsg {
@@ -150,7 +152,7 @@ function App() {
   const [inputPgnUrl, setInputPgnUrl] = useState('');
   const [inputRawPgn, setInputRawPgn] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'source' | 'clock'>('source');
+  const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine'>('source');
 
   const [timeMap, setTimeMap] = useState<Record<number, number>>({});
   const [isSyncMode, setIsSyncMode] = useState(false);
@@ -172,7 +174,45 @@ function App() {
       return updated;
     });
   }, []);
-  
+
+  const [engineSettings, setEngineSettings] = useState<{enabled: boolean; showArrow: boolean}>(() => {
+    const saved = localStorage.getItem('chessSyncEngineSettings');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return { enabled: false, showArrow: false };
+  });
+
+  const updateEngineSettings = useCallback((newSettings: Partial<{enabled: boolean; showArrow: boolean}>) => {
+    setEngineSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      localStorage.setItem('chessSyncEngineSettings', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const [engineScore, setEngineScore] = useState<EngineScore | null>(null);
+  const engineManagerRef = useRef<StockfishManager | null>(null);
+
+  useEffect(() => {
+    if (engineSettings.enabled) {
+      if (!engineManagerRef.current) {
+        engineManagerRef.current = new StockfishManager();
+        engineManagerRef.current.setOnScoreUpdate(setEngineScore);
+      }
+      const timeoutId = setTimeout(() => {
+        engineManagerRef.current?.evaluate(game.fen());
+      }, 250);
+      return () => clearTimeout(timeoutId);
+    } else {
+      if (engineManagerRef.current) {
+        engineManagerRef.current.stop();
+      }
+      setEngineScore(null);
+    }
+  }, [engineSettings.enabled, game.fen()]);
+
+
   const stateRef = useRef({
     player,
     isSyncMode,
@@ -655,13 +695,30 @@ function App() {
     return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
-  const chessboardOptions = React.useMemo(() => ({
-    position: game.fen(),
-    onPieceDrop: handlePieceDrop,
-    allowDragging: isSyncMode,
-    darkSquareStyle: { backgroundColor: '#475569' },
-    lightSquareStyle: { backgroundColor: '#94a3b8' }
-  }), [game.fen(), isSyncMode, handlePieceDrop]);
+  const arrows = React.useMemo(() => {
+    if (engineSettings.enabled && engineSettings.showArrow && engineScore?.bestMove) {
+      const move = engineScore.bestMove;
+      if (move.length >= 4) {
+        return [{
+          startSquare: move.substring(0, 2),
+          endSquare: move.substring(2, 4),
+          color: 'rgba(255, 170, 0, 0.5)'
+        }];
+      }
+    }
+    return [];
+  }, [engineSettings.enabled, engineSettings.showArrow, engineScore?.bestMove]);
+
+  const chessboardOptions = React.useMemo(() => {
+    return {
+      position: game.fen(),
+      onPieceDrop: handlePieceDrop,
+      allowDragging: isSyncMode,
+      darkSquareStyle: { backgroundColor: '#475569' },
+      lightSquareStyle: { backgroundColor: '#94a3b8' },
+      arrows: arrows
+    };
+  }, [game.fen(), isSyncMode, handlePieceDrop, arrows]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-slate-200">
@@ -673,6 +730,15 @@ function App() {
           </h1>
         </div>
         <div className="flex items-center gap-2 lg:gap-4">
+          <button
+            onClick={() => updateEngineSettings({ enabled: !engineSettings.enabled })}
+            className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${engineSettings.enabled ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 shadow-none'}`}
+          >
+            <Activity className="w-4 h-4" />
+            <span className="hidden sm:inline">引擎分析</span>
+            <span className="sm:hidden">引擎</span>
+          </button>
+
           <button
             onClick={toggleSyncMode}
             disabled={!player}
@@ -760,8 +826,15 @@ function App() {
                   </div>
                 )}
                 
-                <div className={`transition-all flex items-center justify-center flex-shrink-0 w-full aspect-square ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`}>
-                  <Chessboard options={chessboardOptions} />
+                <div className="flex flex-row items-stretch justify-center w-full">
+                  {engineSettings.enabled && (
+                     <div className="flex-shrink-0 mr-1.5 lg:mr-2 py-[2%] min-w-[16px] sm:min-w-[24px]">
+                        <EvalBar score={engineScore} />
+                     </div>
+                  )}
+                  <div className={`transition-all flex items-center justify-center flex-1 min-w-0 aspect-square ${isSyncMode ? 'ring-4 ring-indigo-500/50 rounded-sm' : ''}`}>
+                    <Chessboard options={chessboardOptions} />
+                  </div>
                 </div>
                 
                 {clockSettings.enabled && (
@@ -974,6 +1047,12 @@ function App() {
               >
                 棋鐘
               </button>
+              <button 
+                onClick={() => setActiveTab('engine')}
+                className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'engine' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
+              >
+                引擎分析
+              </button>
             </div>
             
             <div className="space-y-6">
@@ -1114,6 +1193,32 @@ function App() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'engine' && (
+                <div className="space-y-3 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={engineSettings.enabled}
+                      onChange={(e) => updateEngineSettings({ enabled: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-slate-300">啟用引擎分析 (顯示評估條)</span>
+                  </label>
+                  
+                  <div className={`transition-opacity duration-200 ${engineSettings.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                    <label className="flex items-center gap-3 cursor-pointer mt-3 pt-3 border-t border-slate-700/50">
+                      <input 
+                        type="checkbox" 
+                        checked={engineSettings.showArrow}
+                        onChange={(e) => updateEngineSettings({ showArrow: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 bg-slate-900 border-slate-700 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-slate-300">在棋盤上顯示最佳走法箭頭</span>
+                    </label>
                   </div>
                 </div>
               )}
