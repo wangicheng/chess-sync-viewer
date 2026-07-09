@@ -11,6 +11,7 @@ import {
 import LZString from 'lz-string';
 import { StockfishManager, type EngineScore } from './engine/StockfishManager';
 import { EvalBar } from './components/EvalBar';
+import { VideoExport } from './components/VideoExport';
 
 type ToastType = 'success' | 'error' | 'info';
 interface ToastMsg {
@@ -152,7 +153,7 @@ function App() {
   const [inputPgnUrl, setInputPgnUrl] = useState('');
   const [inputRawPgn, setInputRawPgn] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board'>('source');
+  const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board' | 'export'>('source');
 
   const [timeMap, setTimeMap] = useState<Record<number, number>>({});
   const [isSyncMode, setIsSyncMode] = useState(false);
@@ -1047,7 +1048,7 @@ function App() {
 
       {isUrlModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Settings className="w-5 h-5 text-blue-400" />
               Settings
@@ -1077,9 +1078,15 @@ function App() {
               >
                 Board
               </button>
+              <button
+                onClick={() => setActiveTab('export')}
+                className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'export' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'}`}
+              >
+                Export
+              </button>
             </div>
             
-            <div className="space-y-6">
+            <div className="p-4 flex-1 overflow-y-auto space-y-6">
               {activeTab === 'source' && (
                 <div className="space-y-4">
                   <div>
@@ -1275,6 +1282,10 @@ function App() {
                     </label>
                   </div>
                 </div>
+              )}
+              
+              {activeTab === 'export' && (
+                <VideoExport history={history} boardSettings={boardSettings} timeMap={timeMap} />
               )}
               
               <div className="pt-2 flex justify-end gap-3 border-t border-slate-700/50 mt-4">
