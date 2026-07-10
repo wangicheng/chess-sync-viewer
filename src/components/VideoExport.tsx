@@ -9,6 +9,8 @@ interface VideoExportProps {
   timeMap: Record<number, number>;
 }
 
+let globalPieceImages: Record<string, HTMLImageElement> | null = null;
+
 export const VideoExport: React.FC<VideoExportProps> = ({ history, boardSettings, timeMap }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -26,6 +28,8 @@ export const VideoExport: React.FC<VideoExportProps> = ({ history, boardSettings
   }, [history.length]);
 
   const loadPieces = async () => {
+    if (globalPieceImages) return globalPieceImages;
+
     const pieces = ['bk', 'bq', 'br', 'bb', 'bn', 'bp', 'wk', 'wq', 'wr', 'wb', 'wn', 'wp'];
     const pieceImages: Record<string, HTMLImageElement> = {};
     
@@ -40,6 +44,8 @@ export const VideoExport: React.FC<VideoExportProps> = ({ history, boardSettings
         img.src = `${import.meta.env.BASE_URL}pieces/${p}.svg`;
       });
     }));
+    
+    globalPieceImages = pieceImages;
     return pieceImages;
   };
 

@@ -4,7 +4,7 @@ import { Chessboard } from 'react-chessboard';
 import YouTube from 'react-youtube';
 import type { YouTubeProps } from 'react-youtube';
 import { 
-  Settings, AlertCircle, FileText, Globe, 
+  Settings, AlertCircle,
   PlaySquare, Edit3, Check, ChevronLeft, ChevronRight, Clock, Scissors,
   SkipBack, SkipForward, Play, Pause, Activity
 } from 'lucide-react';
@@ -71,56 +71,82 @@ const getClockState = (t: number, timeMap: Record<number, number>, history: Move
   return { wTime, bTime, active: isGameOver ? null : (i % 2 === 1 ? 'white' : 'black') };
 };
 
+const formatClock = (seconds: number) => {
+  const maxZero = Math.max(0, seconds);
+  const m = Math.floor(maxZero / 60);
+  const s = Math.floor(maxZero % 60);
+  const ms = Math.floor((maxZero % 1) * 10);
+  if (m > 0) {
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  } else {
+    return `${s}.${ms}`;
+  }
+};
+
 const ClockInfo = ({ player, timeMap, history, settings, color }: { player: any, timeMap: Record<number, number>, history: Move[], settings: ClockSettings, color: 'white' | 'black' }) => {
-  const [time, setTime] = useState(settings.initial);
-  const [isActive, setIsActive] = useState(false);
+  const clockRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (!settings.enabled || !player) {
-      setTime(settings.initial);
-      setIsActive(false);
+      if (clockRef.current) {
+        clockRef.current.innerText = formatClock(settings.initial);
+        clockRef.current.className = "font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900/80 text-slate-400 border-slate-700/50";
+      }
       return;
     }
     
+    let animationFrameId: number;
+    let isFetching = false;
     let isUnmounted = false;
-    const interval = setInterval(async () => {
+    
+    const tick = () => {
       if (isUnmounted) return;
-      try {
-        const t = await Promise.resolve(player.getCurrentTime());
-        const { wTime, bTime, active } = getClockState(
-          t, timeMap, history, 
-          settings.initial, settings.increment,
-          settings.useDifferentForBlack ? settings.bInitial : undefined,
-          settings.useDifferentForBlack ? settings.bIncrement : undefined
-        );
-        setTime(color === 'white' ? wTime : bTime);
-        setIsActive(active === color);
-      } catch (e) {}
-    }, 100);
+      
+      if (!isFetching) {
+        isFetching = true;
+        Promise.resolve(player.getCurrentTime()).then(t => {
+          if (isUnmounted) return;
+          const { wTime, bTime, active } = getClockState(
+            t, timeMap, history, 
+            settings.initial, settings.increment,
+            settings.useDifferentForBlack ? settings.bInitial : undefined,
+            settings.useDifferentForBlack ? settings.bIncrement : undefined
+          );
+          
+          const time = color === 'white' ? wTime : bTime;
+          const isActive = active === color;
+          
+          if (clockRef.current) {
+            clockRef.current.innerText = formatClock(time);
+            
+            const baseClasses = "font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border";
+            const activeClasses = "bg-amber-500/20 text-amber-400 border-amber-500 ring-1 ring-amber-500 shadow-amber-900/20";
+            const inactiveClasses = "bg-slate-900/80 text-slate-400 border-slate-700/50";
+            
+            clockRef.current.className = `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+          }
+          isFetching = false;
+        }).catch(e => {
+          console.debug('Clock sync error:', e);
+          isFetching = false;
+        });
+      }
+      animationFrameId = requestAnimationFrame(tick);
+    };
+    
+    animationFrameId = requestAnimationFrame(tick);
     
     return () => {
       isUnmounted = true;
-      clearInterval(interval);
+      cancelAnimationFrame(animationFrameId);
     };
   }, [player, timeMap, history, settings, color]);
   
   if (!settings.enabled) return null;
   
-  const formatClock = (seconds: number) => {
-    const maxZero = Math.max(0, seconds);
-    const m = Math.floor(maxZero / 60);
-    const s = Math.floor(maxZero % 60);
-    const ms = Math.floor((maxZero % 1) * 10);
-    if (m > 0) {
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    } else {
-      return `${s}.${ms}`;
-    }
-  };
-  
   return (
-    <div className={`font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border ${isActive ? 'bg-amber-500/20 text-amber-400 border-amber-500 ring-1 ring-amber-500 shadow-amber-900/20' : 'bg-slate-900/80 text-slate-400 border-slate-700/50'}`}>
-      {formatClock(time)}
+    <div ref={clockRef} className="font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900/80 text-slate-400 border-slate-700/50">
+      {formatClock(settings.initial)}
     </div>
   );
 };
@@ -137,9 +163,10 @@ function App() {
   }, []);
 
   const [videoId, setVideoId] = useState<string>('');
-  const [pgnUrl, setPgnUrl] = useState<string>('');
   const [pgnString, setPgnString] = useState<string>('');
-  const [game, setGame] = useState(new Chess());
+  const masterGameRef = useRef(new Chess());
+  const [initialFen, setInitialFen] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  const [currentFen, setCurrentFen] = useState(masterGameRef.current.fen());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [history, setHistory] = useState<Move[]>([]);
   
@@ -149,8 +176,6 @@ function App() {
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [inputVideoId, setInputVideoId] = useState('');
   
-  const [inputType, setInputType] = useState<'raw' | 'url'>('raw');
-  const [inputPgnUrl, setInputPgnUrl] = useState('');
   const [inputRawPgn, setInputRawPgn] = useState('');
 
   const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board' | 'export'>('source');
@@ -163,7 +188,7 @@ function App() {
   const [clockSettings, setClockSettings] = useState<ClockSettings>(() => {
     const saved = localStorage.getItem('chessSyncClockSettings');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { return JSON.parse(saved); } catch (e) { console.warn('Failed to parse clock settings', e); }
     }
     return { enabled: false, initial: 300, increment: 5 };
   });
@@ -179,7 +204,7 @@ function App() {
   const [engineSettings, setEngineSettings] = useState<{enabled: boolean; showArrow: boolean}>(() => {
     const saved = localStorage.getItem('chessSyncEngineSettings');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { return JSON.parse(saved); } catch (e) { console.warn('Failed to parse engine settings', e); }
     }
     return { enabled: false, showArrow: false };
   });
@@ -195,7 +220,7 @@ function App() {
   const [boardSettings, setBoardSettings] = useState<{orientation: 'white' | 'black'}>(() => {
     const saved = localStorage.getItem('chessSyncBoardSettings');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { return JSON.parse(saved); } catch (e) { console.warn('Failed to parse board settings', e); }
     }
     return { orientation: 'white' };
   });
@@ -218,16 +243,26 @@ function App() {
         engineManagerRef.current.setOnScoreUpdate(setEngineScore);
       }
       const timeoutId = setTimeout(() => {
-        engineManagerRef.current?.evaluate(game.fen());
+        engineManagerRef.current?.evaluate(currentFen);
       }, 250);
       return () => clearTimeout(timeoutId);
     } else {
       if (engineManagerRef.current) {
-        engineManagerRef.current.stop();
+        engineManagerRef.current.terminate();
+        engineManagerRef.current = null;
       }
       setEngineScore(null);
     }
-  }, [engineSettings.enabled, game.fen()]);
+  }, [engineSettings.enabled, currentFen]);
+
+  // Cleanup worker when component unmounts
+  useEffect(() => {
+    return () => {
+      if (engineManagerRef.current) {
+        engineManagerRef.current.terminate();
+      }
+    };
+  }, []);
 
 
   const stateRef = useRef({
@@ -237,15 +272,16 @@ function App() {
     pgnString,
     history,
     currentMoveIndex,
-    timeMap
+    timeMap,
+    initialFen
   });
 
   const isSeekingRef = useRef(false);
   const seekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    stateRef.current = { player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap };
-  }, [player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap]);
+    stateRef.current = { player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen };
+  }, [player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen]);
 
   const extractTimeMap = (pgn: string) => {
     const tempGame = new Chess();
@@ -276,9 +312,9 @@ function App() {
   const loadGameFromPgn = (text: string) => {
     try {
       setPgnString(text);
-      const newGame = new Chess();
-      newGame.loadPgn(text);
-      setHistory(newGame.history({ verbose: true }) as Move[]);
+      masterGameRef.current = new Chess();
+      masterGameRef.current.loadPgn(text);
+      setHistory(masterGameRef.current.history({ verbose: true }) as Move[]);
       
       const extractedTimeMap = extractTimeMap(text);
       setTimeMap(extractedTimeMap);
@@ -288,13 +324,14 @@ function App() {
       while(resetGame.history().length > 0) {
         resetGame.undo();
       }
-      setGame(resetGame);
+      setInitialFen(resetGame.fen());
+      setCurrentFen(resetGame.fen());
       setCurrentMoveIndex(0);
       
       if (isSyncMode) {
         let nextIndex = 1;
         while(extractedTimeMap[nextIndex] !== undefined) nextIndex++;
-        setSyncTargetIndex(nextIndex <= newGame.history().length ? nextIndex : null);
+        setSyncTargetIndex(nextIndex <= masterGameRef.current.history().length ? nextIndex : null);
       }
     } catch (e) {
       console.error('Failed to parse PGN', e);
@@ -303,10 +340,8 @@ function App() {
   };
 
   const updateMoveVTime = (moveIndex: number, videoTime: number) => {
-    const tempGame = new Chess();
-    tempGame.loadPgn(pgnString);
-    const fullHistory = tempGame.history();
-    const comments = tempGame.getComments();
+    const fullHistory = masterGameRef.current.history();
+    const comments = masterGameRef.current.getComments();
     
     const newGame = new Chess();
     for (let i = 0; i < fullHistory.length; i++) {
@@ -323,7 +358,7 @@ function App() {
       if (c) newGame.setComment(c);
     }
     
-    const headers = tempGame.header();
+    const headers = masterGameRef.current.header();
     for (const key in headers) {
       if (headers[key] !== undefined && headers[key] !== null) {
         newGame.header(key, headers[key] as string);
@@ -334,6 +369,7 @@ function App() {
       newGame.header('StartTime', videoTime.toFixed(3));
     }
     
+    masterGameRef.current = newGame;
     const newPgn = newGame.pgn();
     setPgnString(newPgn);
     setTimeMap(extractTimeMap(newPgn));
@@ -348,8 +384,6 @@ function App() {
     
     if (url.searchParams.has('pgn')) {
       url.searchParams.delete('pgn');
-      setPgnUrl('');
-      setInputType('raw');
     }
 
     window.history.replaceState({}, '', url);
@@ -372,15 +406,12 @@ function App() {
       pieceStr = arg3;
     }
 
-    const { isSyncMode, player, pgnString, currentMoveIndex, timeMap } = stateRef.current;
+    const { isSyncMode, player, currentMoveIndex, timeMap } = stateRef.current;
     if (!isSyncMode || !player) return false;
 
-    const rebuiltGame = new Chess();
-    if (pgnString) rebuiltGame.loadPgn(pgnString);
-    
-    const totalMoves = rebuiltGame.history().length;
+    const totalMoves = masterGameRef.current.history().length;
     for (let i = 0; i < totalMoves - currentMoveIndex; i++) {
-      rebuiltGame.undo();
+      masterGameRef.current.undo();
     }
 
     try {
@@ -392,7 +423,7 @@ function App() {
         promo = 'q';
       }
 
-      const move = rebuiltGame.move({
+      const move = masterGameRef.current.move({
         from: sourceSquare,
         to: targetSquare,
         promotion: promo,
@@ -407,8 +438,8 @@ function App() {
       // Handle time stamping (works whether getCurrentTime returns a Promise or a Number)
       Promise.resolve(player.getCurrentTime()).then((time: any) => {
         const timeNum = Number(time);
-        const comment = rebuiltGame.getComment() || '';
-        rebuiltGame.setComment(`${comment} [%vtime ${timeNum.toFixed(3)}]`.trim());
+        const comment = masterGameRef.current.getComment() || '';
+        masterGameRef.current.setComment(`${comment} [%vtime ${timeNum.toFixed(3)}]`.trim());
 
         const newTimeMap = { ...timeMap };
         // Clean future times if truncated
@@ -417,14 +448,12 @@ function App() {
         }
         newTimeMap[currentMoveIndex + 1] = timeNum;
 
-        const newPgn = rebuiltGame.pgn();
+        const newPgn = masterGameRef.current.pgn();
         setPgnString(newPgn);
         setTimeMap(newTimeMap);
-        setHistory(rebuiltGame.history({ verbose: true }) as Move[]);
+        setHistory(masterGameRef.current.history({ verbose: true }) as Move[]);
         
-        const uiGame = new Chess();
-        uiGame.loadPgn(newPgn);
-        setGame(uiGame); // Display latest
+        setCurrentFen(masterGameRef.current.fen());
         
         setCurrentMoveIndex(currentMoveIndex + 1);
         updateUrlWithNewPgn(newPgn);
@@ -443,18 +472,15 @@ function App() {
 
   // Truncate function
   const truncateHistory = () => {
-    const { pgnString, currentMoveIndex, history, timeMap } = stateRef.current;
+    const { currentMoveIndex, history, timeMap } = stateRef.current;
     if (history.length === 0) return;
     
     if (!window.confirm('Are you sure you want to clear this move and all subsequent moves and markers?')) return;
     
-    const rebuiltGame = new Chess();
-    if (pgnString) rebuiltGame.loadPgn(pgnString);
-    
     const targetKeepMoves = Math.max(0, currentMoveIndex - 1);
-    const totalMoves = rebuiltGame.history().length;
+    const totalMoves = masterGameRef.current.history().length;
     for (let i = 0; i < totalMoves - targetKeepMoves; i++) {
-      rebuiltGame.undo();
+      masterGameRef.current.undo();
     }
     
     const newTimeMap = { ...timeMap };
@@ -462,12 +488,12 @@ function App() {
       delete newTimeMap[i];
     }
     
-    const newPgn = rebuiltGame.pgn();
+    const newPgn = masterGameRef.current.pgn();
     setPgnString(newPgn);
     setTimeMap(newTimeMap);
-    setHistory(rebuiltGame.history({ verbose: true }) as Move[]);
+    setHistory(masterGameRef.current.history({ verbose: true }) as Move[]);
     setCurrentMoveIndex(targetKeepMoves);
-    setGame(rebuiltGame);
+    setCurrentFen(masterGameRef.current.fen());
     updateUrlWithNewPgn(newPgn);
     
     setSyncTargetIndex(null);
@@ -477,12 +503,9 @@ function App() {
     if (!player) return;
     const time = await player.getCurrentTime();
     
-    const newGame = new Chess();
-    if (pgnString) newGame.loadPgn(pgnString);
+    masterGameRef.current.header('StartTime', time.toFixed(3));
     
-    newGame.header('StartTime', time.toFixed(3));
-    
-    const newPgn = newGame.pgn();
+    const newPgn = masterGameRef.current.pgn();
     setPgnString(newPgn);
     updateUrlWithNewPgn(newPgn);
     
@@ -523,7 +546,6 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const v = params.get('v');
-    const pgn = params.get('pgn');
     const data = params.get('data');
     
     if (v) setVideoId(v);
@@ -533,36 +555,15 @@ function App() {
       if (decompressed) {
         loadGameFromPgn(decompressed);
         setInputRawPgn(decompressed);
-        setInputType('raw');
       }
-    } else if (pgn) {
-      setPgnUrl(pgn);
-      setInputPgnUrl(pgn);
-      setInputType('url');
     }
     
     if (v) setInputVideoId(v);
     
-    if (!v && !pgn && !data) {
+    if (!v && !data) {
       setIsUrlModalOpen(true);
     }
   }, []);
-
-  useEffect(() => {
-    if (!pgnUrl) return;
-    const fetchPgn = async () => {
-      try {
-        const response = await fetch(pgnUrl);
-        if (!response.ok) throw new Error('Failed to fetch PGN');
-        const text = await response.text();
-        loadGameFromPgn(text);
-      } catch (error) {
-        console.error('Error fetching PGN:', error);
-        showToast('Failed to load PGN.', 'error');
-      }
-    };
-    fetchPgn();
-  }, [pgnUrl]);
 
   // Sync current time from YouTube player and Scrubbing
   useEffect(() => {
@@ -608,14 +609,13 @@ function App() {
   };
 
   const jumpToMoveSilently = (index: number) => {
-    const newGame = new Chess();
-    if (stateRef.current.pgnString) {
-      newGame.loadPgn(stateRef.current.pgnString);
-      const totalMoves = newGame.history().length;
-      for (let i = 0; i < totalMoves - index; i++) {
-        newGame.undo();
+    if (index === 0) {
+      setCurrentFen(stateRef.current.initialFen);
+    } else {
+      const hist = masterGameRef.current.history({ verbose: true }) as Move[];
+      if (hist[index - 1]) {
+        setCurrentFen(hist[index - 1].after);
       }
-      setGame(newGame);
     }
   };
 
@@ -678,26 +678,21 @@ function App() {
     
     url.searchParams.delete('pgn');
     url.searchParams.delete('data');
-    setPgnUrl('');
     
-    if (inputType === 'url' && inputPgnUrl) {
-      url.searchParams.set('pgn', inputPgnUrl);
-      setPgnUrl(inputPgnUrl);
-    } else if (inputType === 'raw') {
-      if (inputRawPgn) {
-        const compressed = LZString.compressToEncodedURIComponent(inputRawPgn);
-        if (compressed.length > 1800) {
-          showToast('Warning: The pasted PGN is too long, the generated share link may fail in some browsers.', 'error');
-        }
-        url.searchParams.set('data', compressed);
-        loadGameFromPgn(inputRawPgn);
-      } else {
-        // Clear board if empty
-        setPgnString('');
-        setGame(new Chess());
-        setHistory([]);
-        setTimeMap({});
+    if (inputRawPgn) {
+      const compressed = LZString.compressToEncodedURIComponent(inputRawPgn);
+      if (compressed.length > 1800) {
+        showToast('Warning: The pasted PGN is too long, the generated share link may fail in some browsers.', 'error');
       }
+      url.searchParams.set('data', compressed);
+      loadGameFromPgn(inputRawPgn);
+    } else {
+      // Clear board if empty
+      setPgnString('');
+      masterGameRef.current = new Chess();
+      setCurrentFen(masterGameRef.current.fen());
+      setHistory([]);
+      setTimeMap({});
     }
     
     window.history.pushState({}, '', url);
@@ -728,7 +723,7 @@ function App() {
 
   const chessboardOptions = React.useMemo(() => {
     return {
-      position: game.fen(),
+      position: currentFen,
       onPieceDrop: handlePieceDrop,
       allowDragging: isSyncMode,
       darkSquareStyle: { backgroundColor: '#475569' },
@@ -737,7 +732,7 @@ function App() {
       boardOrientation: boardSettings.orientation,
       showNotation: false
     };
-  }, [game.fen(), isSyncMode, handlePieceDrop, arrows, boardSettings.orientation]);
+  }, [currentFen, isSyncMode, handlePieceDrop, arrows, boardSettings.orientation]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-slate-200">
@@ -839,7 +834,7 @@ function App() {
                   <div className="flex justify-between items-end pb-1 lg:pb-2 px-2 flex-shrink-0 w-full">
                     <div className="flex items-center gap-2 lg:gap-3">
                        <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-800 rounded shadow border border-slate-700"></div>
-                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(game.header().Black && game.header().Black !== '?') ? game.header().Black : 'Black'}</span>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(masterGameRef.current.header().Black && masterGameRef.current.header().Black !== '?') ? masterGameRef.current.header().Black : 'Black'}</span>
                     </div>
                     <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="black" />
                   </div>
@@ -860,7 +855,7 @@ function App() {
                   <div className="flex justify-between items-start pt-1 lg:pt-2 px-2 flex-shrink-0 w-full">
                     <div className="flex items-center gap-2 lg:gap-3">
                        <div className="w-6 h-6 lg:w-8 lg:h-8 bg-slate-200 rounded shadow border border-slate-300"></div>
-                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(game.header().White && game.header().White !== '?') ? game.header().White : 'White'}</span>
+                       <span className="font-semibold text-slate-300 text-sm lg:text-base">{(masterGameRef.current.header().White && masterGameRef.current.header().White !== '?') ? masterGameRef.current.header().White : 'White'}</span>
                     </div>
                     <ClockInfo player={player} timeMap={timeMap} history={history} settings={clockSettings} color="white" />
                   </div>
@@ -1103,40 +1098,13 @@ function App() {
                   <hr className="border-slate-700" />
                   
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-3">PGN Loading Method</label>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      <button 
-                        onClick={() => setInputType('raw')}
-                        className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'raw' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                      >
-                        <FileText className="w-4 h-4" />
-                        Manual
-                      </button>
-                      <button 
-                        onClick={() => setInputType('url')}
-                        className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${inputType === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-                      >
-                        <Globe className="w-4 h-4" />
-                        Use External URL
-                      </button>
-                    </div>
-                    
-                    {inputType === 'raw' ? (
-                      <textarea 
-                        value={inputRawPgn}
-                        onChange={(e) => setInputRawPgn(e.target.value)}
-                        placeholder="Paste PGN here, leave blank to start recording from scratch..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none custom-scrollbar font-mono text-sm"
-                      />
-                    ) : (
-                      <input 
-                        type="text" 
-                        value={inputPgnUrl}
-                        onChange={(e) => setInputPgnUrl(e.target.value)}
-                        placeholder="https://... (requires CORS support)"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    )}
+                    <label className="block text-sm font-medium text-slate-400 mb-2">PGN Record</label>
+                    <textarea 
+                      value={inputRawPgn}
+                      onChange={(e) => setInputRawPgn(e.target.value)}
+                      placeholder="Paste PGN here, leave blank to start recording from scratch..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 h-32 resize-none custom-scrollbar font-mono text-sm"
+                    />
                   </div>
                 </div>
               )}
@@ -1289,7 +1257,7 @@ function App() {
               )}
               
               <div className="pt-2 flex justify-end gap-3 border-t border-slate-700/50 mt-4">
-                {(videoId || pgnUrl || pgnString) && (
+                {(videoId || pgnString) && (
                   <button 
                     onClick={() => setIsUrlModalOpen(false)}
                     className="px-4 py-2 rounded-lg font-medium text-slate-300 hover:bg-slate-700 transition-colors"
