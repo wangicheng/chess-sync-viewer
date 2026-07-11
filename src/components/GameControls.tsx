@@ -7,6 +7,7 @@ interface GameControlsProps {
   historyLength: number;
   togglePlay: () => void;
   isPlaying: boolean;
+  layoutMode?: 'sync' | 'study' | 'overlay';
 }
 
 export const GameControls: React.FC<GameControlsProps> = ({
@@ -17,7 +18,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
   isPlaying,
 }) => {
   return (
-    <div className="flex-none flex items-center justify-center gap-4 mt-2 lg:mt-4 bg-slate-900/50 rounded-full px-4 py-1.5 lg:py-2 ring-1 ring-white/10">
+    <div className="flex-none inline-flex items-center justify-center mx-auto gap-1.5 lg:gap-2 mt-2 lg:mt-3 bg-slate-900/60 rounded-lg px-2.5 lg:px-3 py-1 lg:py-1.5 shadow-md border border-slate-700/50 backdrop-blur-sm">
       <button
         onClick={() => jumpToMove(0)}
         className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors"

@@ -11,6 +11,7 @@ interface VideoAreaProps {
   updateStartTimeAnchor: () => void;
   history: Move[];
   truncateHistory: () => void;
+  layoutMode: 'sync' | 'study' | 'overlay';
 }
 
 export const VideoArea: React.FC<VideoAreaProps> = ({
@@ -20,14 +21,29 @@ export const VideoArea: React.FC<VideoAreaProps> = ({
   updateStartTimeAnchor,
   history,
   truncateHistory,
+  layoutMode,
 }) => {
   const onPlayerReady: YouTubeProps['onReady'] = (event) => {
     setPlayer(event.target);
   };
 
+  React.useEffect(() => {
+    if (!videoId) {
+      setPlayer(null);
+    }
+  }, [videoId, setPlayer]);
+
   return (
-    <div className="flex-none lg:flex-1 flex flex-col p-2 lg:p-4 gap-2 lg:gap-4 overflow-visible lg:overflow-y-auto z-10 border-b lg:border-b-0 border-slate-700/50 bg-slate-900/90 lg:bg-transparent backdrop-blur-sm">
-      <div className="w-full mx-auto aspect-video bg-black rounded-lg lg:rounded-xl overflow-hidden shadow-xl ring-1 ring-white/10 relative flex-shrink-0">
+    <div className={`flex flex-col z-10 ${
+      layoutMode === 'overlay'
+        ? 'w-full h-full'
+        : 'flex-none lg:flex-1 p-2 lg:p-4 gap-2 lg:gap-4 overflow-visible lg:overflow-y-auto border-b lg:border-b-0 border-slate-700/50 bg-slate-900/90 lg:bg-transparent backdrop-blur-sm'
+    }`}>
+      <div className={`mx-auto bg-black relative flex-shrink-0 ${
+        layoutMode === 'overlay'
+          ? 'w-full h-full'
+          : 'w-full aspect-video rounded-lg lg:rounded-xl overflow-hidden shadow-xl ring-1 ring-white/10'
+      }`}>
         {videoId ? (
           <YouTube
             videoId={videoId}
@@ -43,8 +59,8 @@ export const VideoArea: React.FC<VideoAreaProps> = ({
         )}
       </div>
 
-      {isSyncMode && (
-        <div className="p-3 lg:p-4 bg-indigo-950/80 border border-indigo-800/80 rounded-lg flex flex-col xl:flex-row gap-3 xl:gap-4 justify-between flex-shrink-0 shadow-lg ring-1 ring-indigo-500/50">
+      {isSyncMode && layoutMode !== 'overlay' && (
+        <div className="p-3 lg:p-4 bg-indigo-950/80 border border-indigo-800/80 rounded-lg flex flex-col xl:flex-row gap-3 xl:gap-4 justify-between flex-shrink-0 shadow-lg ring-1 ring-indigo-500/50 mt-2">
           <div className="hidden sm:block">
             <div className="text-sm text-indigo-300 mb-1">Recording/Editing...</div>
             <div className="text-xs lg:text-sm text-indigo-100 flex items-center gap-2">

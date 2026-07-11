@@ -80,7 +80,7 @@ export const ClockInfo: React.FC<ClockInfoProps> = ({ player, timeMap, history, 
       if (clockRef.current) {
         clockRef.current.innerText = formatClock(settings.initial);
         clockRef.current.className =
-          'font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900/80 text-slate-400 border-slate-700/50';
+          'font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900 text-slate-400 border-slate-700/50';
       }
       return;
     }
@@ -116,8 +116,8 @@ export const ClockInfo: React.FC<ClockInfoProps> = ({ player, timeMap, history, 
               const baseClasses =
                 'font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border';
               const activeClasses =
-                'bg-amber-500/20 text-amber-400 border-amber-500 ring-1 ring-amber-500 shadow-amber-900/20';
-              const inactiveClasses = 'bg-slate-900/80 text-slate-400 border-slate-700/50';
+                'bg-amber-950 text-amber-400 border-amber-500 ring-1 ring-amber-500 shadow-amber-900/20';
+              const inactiveClasses = 'bg-slate-900 text-slate-400 border-slate-700/50';
 
               clockRef.current.className = `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
             }
@@ -144,7 +144,7 @@ export const ClockInfo: React.FC<ClockInfoProps> = ({ player, timeMap, history, 
   return (
     <div
       ref={clockRef}
-      className="font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900/80 text-slate-400 border-slate-700/50"
+      className="font-mono text-lg md:text-xl font-bold px-3 py-0.5 leading-none rounded shadow-sm flex items-center justify-center min-w-[70px] lg:min-w-[90px] transition-colors border bg-slate-900 text-slate-400 border-slate-700/50"
     >
       {formatClock(settings.initial)}
     </div>

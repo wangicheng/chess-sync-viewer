@@ -1,5 +1,7 @@
 import React from 'react';
-import { Activity, PlaySquare, Check, Settings } from 'lucide-react';
+import { Activity, PlaySquare, Check, Settings, Monitor, Maximize, Layers } from 'lucide-react';
+
+export type LayoutMode = 'sync' | 'study' | 'overlay';
 
 interface HeaderProps {
   engineSettings: { enabled: boolean };
@@ -8,6 +10,8 @@ interface HeaderProps {
   toggleSyncMode: () => void;
   player: any;
   setIsUrlModalOpen: (open: boolean) => void;
+  layoutMode: LayoutMode;
+  setLayoutMode: (mode: LayoutMode) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   toggleSyncMode,
   player,
   setIsUrlModalOpen,
+  layoutMode,
+  setLayoutMode,
 }) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700 shadow-md z-10">
@@ -27,6 +33,39 @@ export const Header: React.FC<HeaderProps> = ({
         </h1>
       </div>
       <div className="flex items-center gap-2 lg:gap-4">
+        <div className="hidden md:flex bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner items-center">
+          <button
+            onClick={() => setLayoutMode('sync')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              layoutMode === 'sync' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+            title="Sync Mode (Default)"
+          >
+            <Monitor className="w-4 h-4" />
+            <span>Sync</span>
+          </button>
+          <button
+            onClick={() => setLayoutMode('study')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              layoutMode === 'study' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+            title="Study Mode (Analysis only)"
+          >
+            <Maximize className="w-4 h-4" />
+            <span>Study</span>
+          </button>
+          <button
+            onClick={() => setLayoutMode('overlay')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              layoutMode === 'overlay' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+            title="Overlay Mode (For Creators)"
+          >
+            <Layers className="w-4 h-4" />
+            <span>Overlay</span>
+          </button>
+        </div>
+
         <button
           onClick={() => updateEngineSettings({ enabled: !engineSettings.enabled })}
           className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${

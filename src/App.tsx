@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import LZString from 'lz-string';
 import { Chess } from 'chess.js';
+
+import { MoveDiagonal, Move } from 'lucide-react';
 
 import { useToast } from './hooks/useToast';
 import { useSettings } from './hooks/useSettings';
 import { useChessEngine } from './hooks/useChessEngine';
 import { useGameSync } from './hooks/useGameSync';
+import { useInteractable } from './hooks/useInteractable';
 
-import { Header } from './components/Header';
+import { Header, type LayoutMode } from './components/Header';
 import { VideoArea } from './components/VideoArea';
 import { BoardArea } from './components/BoardArea';
 import { GameControls } from './components/GameControls';
@@ -29,6 +32,9 @@ function App() {
 
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board' | 'export'>('source');
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('sync');
+  
+  const interactable = useInteractable();
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -152,6 +158,30 @@ function App() {
     setIsUrlModalOpen(false);
   };
 
+  useEffect(() => {
+    if (gameSync.player && typeof gameSync.player.getIframe === 'function') {
+      try {
+        const iframe = gameSync.player.getIframe();
+        if (!iframe || !iframe.contentWindow) return; // Prevent postMessage to unloaded iframe
+
+        if (layoutMode === 'study') {
+          if (typeof gameSync.player.pauseVideo === 'function') {
+            gameSync.player.pauseVideo();
+          }
+          if (typeof gameSync.player.mute === 'function') {
+            gameSync.player.mute();
+          }
+        } else {
+          if (typeof gameSync.player.unMute === 'function') {
+            gameSync.player.unMute();
+          }
+        }
+      } catch (e) {
+        console.warn('YouTube API error:', e);
+      }
+    }
+  }, [layoutMode, gameSync.player]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-slate-200">
       <Header
@@ -161,20 +191,70 @@ function App() {
         toggleSyncMode={gameSync.toggleSyncMode}
         player={gameSync.player}
         setIsUrlModalOpen={setIsUrlModalOpen}
+        layoutMode={layoutMode}
+        setLayoutMode={setLayoutMode}
       />
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <VideoArea
-          videoId={gameSync.videoId}
-          setPlayer={gameSync.setPlayer}
-          isSyncMode={gameSync.isSyncMode}
-          updateStartTimeAnchor={gameSync.updateStartTimeAnchor}
-          history={gameSync.history}
-          truncateHistory={gameSync.truncateHistory}
-        />
+      <main className={`flex-1 overflow-hidden ${
+        layoutMode === 'sync' ? 'flex flex-col lg:flex-row' : 
+        layoutMode === 'study' ? 'flex flex-col lg:flex-row p-4 gap-4 justify-center bg-slate-900 shadow-inner' : 
+        'relative flex'
+      }`}>
+        {/* Video Area Container */}
+        <div className={`${
+          layoutMode === 'sync' ? 'flex-1 min-w-0 flex flex-col' :
+          layoutMode === 'study' ? 'absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden z-[-1]' :
+          'absolute inset-0 w-full h-full z-0 pointer-events-none'
+        }`}>
+          <div className="w-full h-full pointer-events-auto">
+            <VideoArea
+              videoId={gameSync.videoId}
+              setPlayer={gameSync.setPlayer}
+              isSyncMode={gameSync.isSyncMode}
+              updateStartTimeAnchor={gameSync.updateStartTimeAnchor}
+              history={gameSync.history}
+              truncateHistory={gameSync.truncateHistory}
+              layoutMode={layoutMode}
+            />
+          </div>
+        </div>
 
-        <div className="flex-1 lg:flex-none w-full lg:w-[450px] xl:w-[500px] flex flex-col min-h-0 border-l lg:border-t-0 border-slate-700 bg-slate-800/50">
-          <div className="flex-1 min-h-0 p-2 lg:p-6 flex flex-col items-center justify-center bg-slate-800/80 shadow-inner">
+        {/* Board Area Container */}
+        <div 
+          ref={interactable.ref}
+          className={`group ${
+          layoutMode === 'sync' ? 'flex-1 lg:flex-none w-full lg:w-[450px] xl:w-[500px] flex flex-col min-h-0 border-l lg:border-t-0 border-slate-700 bg-slate-800/50 relative z-10' :
+          layoutMode === 'study' ? 'w-full lg:w-[65vh] xl:w-[75vh] flex flex-col min-h-0 relative z-10' :
+          'absolute right-4 bottom-4 lg:right-8 lg:bottom-8 pointer-events-auto flex flex-col w-[350px] sm:w-[400px] lg:w-[450px] z-10 bg-transparent'
+        }`}
+        style={layoutMode === 'overlay' ? interactable.style : undefined}
+        >
+          {layoutMode === 'overlay' && (
+            <div className="absolute -right-3 -bottom-3 flex items-center gap-0.5 bg-slate-900/90 p-1 rounded-full border border-slate-700/50 shadow-xl z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
+              <div 
+                className="cursor-grab active:cursor-grabbing p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+                onMouseDown={interactable.handleDragStart}
+                onTouchStart={interactable.handleDragStart}
+                title="Move Board"
+              >
+                <Move className="w-4 h-4" />
+              </div>
+              <div className="w-px h-4 bg-slate-700 mx-0.5"></div>
+              <div 
+                className="cursor-nwse-resize active:cursor-grabbing p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+                onMouseDown={interactable.handleResizeStart}
+                onTouchStart={interactable.handleResizeStart}
+                title="Resize Board (From Center)"
+              >
+                <MoveDiagonal className="w-4 h-4" />
+              </div>
+            </div>
+          )}
+          <div className={`${
+            layoutMode === 'sync' ? 'flex-1 min-h-0 p-2 lg:p-6 flex flex-col items-center justify-center bg-slate-800/80 shadow-inner' :
+            layoutMode === 'study' ? 'flex-1 flex flex-col items-center justify-center' :
+            'flex flex-col items-center justify-center flex-shrink-0 w-full aspect-square drop-shadow-2xl'
+          }`}>
             <BoardArea
               clockSettings={clockSettings}
               engineSettings={engineSettings}
@@ -189,29 +269,60 @@ function App() {
               masterGameRef={gameSync.masterGameRef}
             />
             
-            <GameControls
-              jumpToMove={gameSync.jumpToMove}
-              currentMoveIndex={gameSync.currentMoveIndex}
-              historyLength={gameSync.history.length}
-              togglePlay={gameSync.togglePlay}
-              isPlaying={gameSync.isPlaying}
-            />
+            <div className={layoutMode === 'overlay' ? 'opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-full flex justify-center' : 'w-full flex justify-center'}>
+              <GameControls
+                jumpToMove={gameSync.jumpToMove}
+                currentMoveIndex={gameSync.currentMoveIndex}
+                historyLength={gameSync.history.length}
+                togglePlay={gameSync.togglePlay}
+                isPlaying={gameSync.isPlaying}
+                layoutMode={layoutMode}
+              />
+            </div>
           </div>
           
-          <MoveList
-            currentMoveIndex={gameSync.currentMoveIndex}
-            jumpToMove={gameSync.jumpToMove}
-            isSyncMode={gameSync.isSyncMode}
-            syncTargetIndex={gameSync.syncTargetIndex}
-            timeMap={gameSync.timeMap}
-            editingMoveIndex={gameSync.editingMoveIndex}
-            setEditingMoveIndex={gameSync.setEditingMoveIndex}
-            history={gameSync.history}
-            player={gameSync.player}
-            updateMoveVTime={gameSync.updateMoveVTime}
-          />
+          {layoutMode === 'sync' && (
+            <div className="flex flex-col min-h-[300px] lg:min-h-0 flex-shrink-0 lg:flex-1">
+              <MoveList
+                currentMoveIndex={gameSync.currentMoveIndex}
+                jumpToMove={gameSync.jumpToMove}
+                isSyncMode={gameSync.isSyncMode}
+                syncTargetIndex={gameSync.syncTargetIndex}
+                timeMap={gameSync.timeMap}
+                editingMoveIndex={gameSync.editingMoveIndex}
+                setEditingMoveIndex={gameSync.setEditingMoveIndex}
+                history={gameSync.history}
+                player={gameSync.player}
+                updateMoveVTime={gameSync.updateMoveVTime}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Study Mode Exclusive MoveList Container (Side-by-side) */}
+        {layoutMode === 'study' && (
+          <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col min-h-[400px] lg:min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl z-10">
+            <MoveList
+              currentMoveIndex={gameSync.currentMoveIndex}
+              jumpToMove={gameSync.jumpToMove}
+              isSyncMode={gameSync.isSyncMode}
+              syncTargetIndex={gameSync.syncTargetIndex}
+              timeMap={gameSync.timeMap}
+              editingMoveIndex={gameSync.editingMoveIndex}
+              setEditingMoveIndex={gameSync.setEditingMoveIndex}
+              history={gameSync.history}
+              player={gameSync.player}
+              updateMoveVTime={gameSync.updateMoveVTime}
+            />
+          </div>
+        )}
       </main>
+
+      {interactable.interactionType && (
+        <div 
+          className={`fixed inset-0 z-[9999] ${interactable.interactionType === 'resize' ? 'cursor-nwse-resize' : 'cursor-grabbing'}`} 
+        />
+      )}
 
       <SettingsModal
         isUrlModalOpen={isUrlModalOpen}
