@@ -48,8 +48,8 @@ export const MoveList: React.FC<MoveListProps> = ({
         <span>Game Record</span>
       </h3>
 
-      <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full h-full lg:h-auto">
-        <div className="flex-shrink-0 w-[180px] lg:w-full flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mb-0 lg:mb-2 h-[42px] lg:h-auto group">
+      <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full flex-1 min-h-0">
+        <div className="flex-shrink-0 w-auto min-w-[100px] lg:min-w-0 lg:w-full flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mb-0 lg:mb-2 h-[42px] lg:h-auto group">
           <div className="flex items-center w-full h-full">
             <button
               id="move-btn-0"
@@ -140,7 +140,7 @@ export const MoveList: React.FC<MoveListProps> = ({
                 return (
                   <div
                     key={mIndex}
-                    className={`flex-shrink-0 w-[110px] lg:w-auto lg:flex-1 flex flex-col border-r border-slate-700/30 lg:border-r-0 lg:border-l ${
+                    className={`flex-shrink-0 w-auto min-w-[70px] lg:min-w-0 lg:w-auto lg:flex-1 flex flex-col border-r border-slate-700/30 lg:border-r-0 lg:border-l ${
                       isTarget ? 'bg-indigo-900/40 ring-1 ring-indigo-500 inset-0 relative z-10' : ''
                     } h-full group`}
                   >

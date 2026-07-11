@@ -32,73 +32,75 @@ export const Header: React.FC<HeaderProps> = ({
           ChessSync Viewer
         </h1>
       </div>
-      <div className="flex items-center gap-2 lg:gap-4">
-        <div className="hidden md:flex bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner items-center">
+      <div className="flex items-center gap-1.5 lg:gap-4">
+        <div className="flex bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner items-center">
           <button
             onClick={() => setLayoutMode('sync')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+            className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-medium rounded-md transition-all ${
               layoutMode === 'sync' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
-            title="Sync Mode (Default)"
+            title="Sync Mode"
           >
-            <Monitor className="w-4 h-4" />
-            <span>Sync</span>
+            <Monitor className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Sync</span>
           </button>
           <button
             onClick={() => setLayoutMode('study')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+            className={`flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-medium rounded-md transition-all ${
               layoutMode === 'study' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
-            title="Study Mode (Analysis only)"
+            title="Study Mode"
           >
-            <Maximize className="w-4 h-4" />
-            <span>Study</span>
+            <Maximize className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Study</span>
           </button>
           <button
             onClick={() => setLayoutMode('overlay')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+            className={`hidden lg:flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 text-xs font-medium rounded-md transition-all ${
               layoutMode === 'overlay' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
-            title="Overlay Mode (For Creators)"
+            title="Overlay Mode"
           >
-            <Layers className="w-4 h-4" />
-            <span>Overlay</span>
+            <Layers className="w-5 h-5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Overlay</span>
           </button>
         </div>
 
         <button
           onClick={() => updateEngineSettings({ enabled: !engineSettings.enabled })}
-          className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${
+          className={`flex items-center gap-1.5 p-2 sm:px-3 lg:px-4 sm:py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${
             engineSettings.enabled
               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
               : 'bg-slate-700 hover:bg-slate-600 text-slate-200 shadow-none'
           }`}
+          title="Engine Analysis"
         >
-          <Activity className="w-4 h-4" />
-          <span className="hidden sm:inline">Engine Analysis</span>
-          <span className="sm:hidden">Engine</span>
+          <Activity className="w-5 h-5 sm:w-4 sm:h-4" />
+          <span className="hidden lg:inline">Engine Analysis</span>
+          <span className="hidden sm:inline lg:hidden">Engine</span>
         </button>
 
         <button
           onClick={toggleSyncMode}
           disabled={!player}
-          className={`flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${
+          className={`hidden md:flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md transition-all shadow-sm ${
             isSyncMode
               ? 'bg-amber-600 hover:bg-amber-500 text-white'
               : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none'
           }`}
         >
           {isSyncMode ? <Check className="w-4 h-4" /> : <PlaySquare className="w-4 h-4" />}
-          <span className="hidden sm:inline">{isSyncMode ? 'Finish Editing' : 'Edit Mode'}</span>
-          <span className="sm:hidden">{isSyncMode ? 'Finish' : 'Edit'}</span>
+          <span className="hidden lg:inline">{isSyncMode ? 'Finish Editing' : 'Edit Mode'}</span>
+          <span className="hidden sm:inline lg:hidden">{isSyncMode ? 'Finish' : 'Edit'}</span>
         </button>
 
         <button
           onClick={() => setIsUrlModalOpen(true)}
-          className="flex items-center gap-1.5 lg:gap-2 px-3 lg:px-4 py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 p-2 sm:px-3 lg:px-4 sm:py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm"
+          title="Settings"
         >
-          <Settings className="w-4 h-4" />
-          <span>Settings</span>
+          <Settings className="w-5 h-5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Settings</span>
         </button>
       </div>
     </header>

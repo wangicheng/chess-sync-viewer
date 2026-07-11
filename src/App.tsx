@@ -9,6 +9,7 @@ import { useSettings } from './hooks/useSettings';
 import { useChessEngine } from './hooks/useChessEngine';
 import { useGameSync } from './hooks/useGameSync';
 import { useInteractable } from './hooks/useInteractable';
+import { useSplitPane } from './hooks/useSplitPane';
 
 import { Header, type LayoutMode } from './components/Header';
 import { VideoArea } from './components/VideoArea';
@@ -35,6 +36,7 @@ function App() {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('sync');
   
   const interactable = useInteractable();
+  const splitPane = useSplitPane(500, 320, () => window.innerWidth - 400);
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -196,15 +198,15 @@ function App() {
       />
 
       <main className={`flex-1 overflow-hidden ${
-        layoutMode === 'sync' ? 'flex flex-col lg:flex-row' : 
-        layoutMode === 'study' ? 'flex flex-col lg:flex-row p-4 gap-4 justify-center bg-slate-900 shadow-inner' : 
-        'relative flex'
+        layoutMode === 'sync' ? 'flex flex-col landscape:flex-row lg:flex-row' : 
+        layoutMode === 'study' ? 'flex flex-col landscape:flex-row lg:flex-row landscape:p-2 lg:p-4 landscape:gap-2 lg:gap-4 justify-center bg-slate-900 shadow-inner' : 
+        'relative flex flex-col lg:block'
       }`}>
         {/* Video Area Container */}
         <div className={`${
-          layoutMode === 'sync' ? 'flex-1 min-w-0 flex flex-col' :
-          layoutMode === 'study' ? 'absolute opacity-0 pointer-events-none w-0 h-0 overflow-hidden z-[-1]' :
-          'absolute inset-0 w-full h-full z-0 pointer-events-none'
+          layoutMode === 'sync' ? 'w-full aspect-video landscape:h-auto landscape:aspect-auto landscape:flex-1 lg:h-auto lg:aspect-auto lg:flex-1 min-w-0 flex flex-col flex-shrink-0' :
+          layoutMode === 'study' ? 'hidden' :
+          'w-full aspect-video lg:h-auto lg:aspect-auto lg:absolute lg:inset-0 lg:w-full lg:h-full z-0 lg:pointer-events-none flex-shrink-0'
         }`}>
           <div className="w-full h-full pointer-events-auto">
             <VideoArea
@@ -219,18 +221,32 @@ function App() {
           </div>
         </div>
 
+        {/* Split Pane Divider */}
+        {layoutMode === 'sync' && (
+          <div 
+            className="hidden lg:flex w-2 lg:w-2 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-20 flex-shrink-0 relative items-center justify-center group/divider"
+            onMouseDown={splitPane.handleMouseDown}
+            onTouchStart={splitPane.handleMouseDown}
+          >
+            <div className="w-0.5 h-8 bg-slate-600 group-hover/divider:bg-white rounded-full"></div>
+          </div>
+        )}
+
         {/* Board Area Container */}
         <div 
           ref={interactable.ref}
           className={`group ${
-          layoutMode === 'sync' ? 'flex-1 lg:flex-none w-full lg:w-[450px] xl:w-[500px] flex flex-col min-h-0 border-l lg:border-t-0 border-slate-700 bg-slate-800/50 relative z-10' :
-          layoutMode === 'study' ? 'w-full lg:w-[65vh] xl:w-[75vh] flex flex-col min-h-0 relative z-10' :
-          'absolute right-4 bottom-4 lg:right-8 lg:bottom-8 pointer-events-auto flex flex-col w-[350px] sm:w-[400px] lg:w-[450px] z-10 bg-transparent'
+          layoutMode === 'sync' ? 'flex-1 landscape:flex-none lg:flex-none w-full landscape:w-[320px] lg:sync-pane-w lg:max-w-[calc(100vw-400px)] flex flex-col min-h-0 border-b landscape:border-b-0 landscape:border-l lg:border-b-0 lg:border-l lg:border-t-0 border-slate-700 bg-slate-800/50 relative z-10' :
+          layoutMode === 'study' ? 'flex-1 w-full landscape:w-auto flex flex-col min-h-0 relative z-10' :
+          'flex-1 lg:flex-none lg:absolute lg:right-8 lg:bottom-8 pointer-events-auto flex flex-col w-full lg:w-[450px] z-10 bg-slate-800 lg:bg-transparent overflow-y-auto lg:overflow-visible'
         }`}
-        style={layoutMode === 'overlay' ? interactable.style : undefined}
+        style={{
+          '--sync-pane-width': `${splitPane.paneWidth}px`,
+          ...(layoutMode === 'overlay' ? interactable.style : undefined)
+        } as React.CSSProperties}
         >
           {layoutMode === 'overlay' && (
-            <div className="absolute -right-3 -bottom-3 flex items-center gap-0.5 bg-slate-900/90 p-1 rounded-full border border-slate-700/50 shadow-xl z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
+            <div className="hidden lg:flex absolute -right-3 -bottom-3 items-center gap-0.5 bg-slate-900/90 p-1 rounded-full border border-slate-700/50 shadow-xl z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
               <div 
                 className="cursor-grab active:cursor-grabbing p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
                 onMouseDown={interactable.handleDragStart}
@@ -251,9 +267,9 @@ function App() {
             </div>
           )}
           <div className={`${
-            layoutMode === 'sync' ? 'flex-1 min-h-0 p-2 lg:p-6 flex flex-col items-center justify-center bg-slate-800/80 shadow-inner' :
-            layoutMode === 'study' ? 'flex-1 flex flex-col items-center justify-center' :
-            'flex flex-col items-center justify-center flex-shrink-0 w-full aspect-square drop-shadow-2xl'
+            layoutMode === 'sync' ? 'flex-1 lg:flex-[3] lg:flex-shrink-0 w-full min-h-0 p-2 lg:p-6 flex flex-col bg-slate-800/80 shadow-inner' :
+            layoutMode === 'study' ? 'flex-1 lg:flex-shrink-0 w-full flex flex-col pt-2 lg:pt-0 min-h-0' :
+            'flex flex-col flex-shrink-0 w-full aspect-square lg:aspect-square drop-shadow-2xl pt-2 lg:pt-0 min-h-0'
           }`}>
             <BoardArea
               clockSettings={clockSettings}
@@ -269,7 +285,7 @@ function App() {
               masterGameRef={gameSync.masterGameRef}
             />
             
-            <div className={layoutMode === 'overlay' ? 'opacity-0 group-hover:opacity-100 transition-opacity duration-300 w-full flex justify-center' : 'w-full flex justify-center'}>
+            <div className={layoutMode === 'overlay' ? 'lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 w-full flex justify-center pb-2 lg:pb-0' : 'w-full flex justify-center pb-2 lg:pb-0'}>
               <GameControls
                 jumpToMove={gameSync.jumpToMove}
                 currentMoveIndex={gameSync.currentMoveIndex}
@@ -282,7 +298,7 @@ function App() {
           </div>
           
           {layoutMode === 'sync' && (
-            <div className="flex flex-col min-h-[300px] lg:min-h-0 flex-shrink-0 lg:flex-1">
+            <div className="flex flex-col flex-none lg:flex-1 min-h-0">
               <MoveList
                 currentMoveIndex={gameSync.currentMoveIndex}
                 jumpToMove={gameSync.jumpToMove}
@@ -301,7 +317,7 @@ function App() {
 
         {/* Study Mode Exclusive MoveList Container (Side-by-side) */}
         {layoutMode === 'study' && (
-          <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col min-h-[400px] lg:min-h-0 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-2xl z-10">
+          <div className="flex-none w-full landscape:w-[300px] lg:w-[400px] xl:w-[450px] min-h-0 flex flex-col bg-slate-800 border-slate-700 landscape:border-l lg:border lg:rounded-lg overflow-hidden shadow-2xl z-10">
             <MoveList
               currentMoveIndex={gameSync.currentMoveIndex}
               jumpToMove={gameSync.jumpToMove}
@@ -318,9 +334,12 @@ function App() {
         )}
       </main>
 
-      {interactable.interactionType && (
+      {(interactable.interactionType || splitPane.isDragging) && (
         <div 
-          className={`fixed inset-0 z-[9999] ${interactable.interactionType === 'resize' ? 'cursor-nwse-resize' : 'cursor-grabbing'}`} 
+          className={`fixed inset-0 z-[9999] ${
+            interactable.interactionType === 'resize' ? 'cursor-nwse-resize' : 
+            splitPane.isDragging ? 'cursor-col-resize' : 'cursor-grabbing'
+          }`} 
         />
       )}
 

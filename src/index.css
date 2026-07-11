@@ -43,3 +43,4 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+@media (min-width: 1024px) { .lg\:sync-pane-w { width: var(--sync-pane-width); } }
