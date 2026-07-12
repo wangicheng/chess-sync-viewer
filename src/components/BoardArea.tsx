@@ -54,7 +54,7 @@ export const BoardArea: React.FC<BoardAreaProps> = ({
     return {
       position: currentFen,
       onPieceDrop: handlePieceDrop,
-      allowDragging: isSyncMode,
+      allowDragging: true,
       darkSquareStyle: { backgroundColor: '#475569' },
       lightSquareStyle: { backgroundColor: '#94a3b8' },
       arrows: arrows,

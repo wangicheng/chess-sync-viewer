@@ -1,16 +1,21 @@
 import React, { useEffect } from 'react';
 import { Clock, Check, Edit3, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Move } from 'chess.js';
+import type { GameNode } from '../hooks/useGameSync';
 
 interface MoveListProps {
   currentMoveIndex: number;
   jumpToMove: (index: number) => void;
+  jumpToNode: (nodeId: string) => void;
   isSyncMode: boolean;
   syncTargetIndex: number | null;
   timeMap: Record<number, number>;
   editingMoveIndex: number | null;
   setEditingMoveIndex: (index: number | null) => void;
   history: Move[];
+  gameTree: Record<string, GameNode>;
+  mainLineIds: string[];
+  currentNodeId: string;
   player: any;
   updateMoveVTime: (moveIndex: number, videoTime: number) => void;
 }
@@ -18,21 +23,25 @@ interface MoveListProps {
 export const MoveList: React.FC<MoveListProps> = ({
   currentMoveIndex,
   jumpToMove,
+  jumpToNode,
   isSyncMode,
   syncTargetIndex,
   timeMap,
   editingMoveIndex,
   setEditingMoveIndex,
   history,
+  gameTree,
+  mainLineIds,
+  currentNodeId,
   player,
   updateMoveVTime,
 }) => {
   useEffect(() => {
     const el = document.getElementById(`move-btn-${currentMoveIndex}`);
-    if (el) {
+    if (el && mainLineIds.includes(currentNodeId)) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
-  }, [currentMoveIndex]);
+  }, [currentMoveIndex, currentNodeId, mainLineIds]);
 
   const formatTime = (seconds: number) => {
     if (seconds === undefined || isNaN(seconds)) return '--:--';
@@ -42,20 +51,84 @@ export const MoveList: React.FC<MoveListProps> = ({
     return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
+  const VariationLine: React.FC<{ startNodeId: string }> = ({ startNodeId }) => {
+    const lineNodes = [];
+    let currId: string | undefined = startNodeId;
+    while(currId) {
+      const node: GameNode | undefined = gameTree[currId];
+      if (!node) break;
+      lineNodes.push(node);
+      if (node.childrenIds.length > 0) {
+        currId = node.childrenIds[0];
+      } else {
+        break;
+      }
+    }
+
+    return (
+      <div className="flex flex-col mb-1 last:mb-0">
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-slate-500 font-bold ml-1">↳</span>
+          {lineNodes.map(n => {
+             const isFirstInVar = n.id === startNodeId;
+             const mNum = n.move?.color === 'w' ? n.fen.split(' ')[5] : String(parseInt(n.fen.split(' ')[5] || '1') - 1);
+             const prefix = n.move?.color === 'w' ? `${mNum}. ` : (isFirstInVar ? `${mNum}... ` : '');
+             return (
+               <React.Fragment key={n.id}>
+                 <button
+                   onClick={() => jumpToNode(n.id)}
+                   className={`px-1.5 py-0.5 text-[13px] rounded transition-colors ${
+                     currentNodeId === n.id ? 'bg-indigo-600/60 text-indigo-100 font-bold' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                   }`}
+                 >
+                   {prefix}{n.move?.san}
+                 </button>
+                 {n.childrenIds.length > 1 && (
+                   <div className="w-full pl-4 py-1 border-l border-slate-600/50 my-1">
+                     {n.childrenIds.slice(1).map(childId => (
+                       <VariationLine key={childId} startNodeId={childId} />
+                     ))}
+                   </div>
+                 )}
+               </React.Fragment>
+             )
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderVariations = (parentId: string, mainChildId: string) => {
+    const parent: GameNode | undefined = gameTree[parentId];
+    if (!parent) return null;
+    const variations = parent.childrenIds.filter((id: string) => id !== mainChildId);
+    if (variations.length === 0) return null;
+
+    return (
+      <div className="flex flex-col pl-6 py-1.5 bg-slate-800/30 border-l-2 border-indigo-500/20 ml-3 mb-1 mt-1 rounded-r">
+        {variations.map((vid: string) => (
+          <VariationLine key={vid} startNodeId={vid} />
+        ))}
+      </div>
+    );
+  };
+
+  const isMainLine = mainLineIds.includes(currentNodeId);
+
   return (
     <div className="flex-none lg:flex-1 h-[72px] lg:h-auto min-h-[72px] lg:min-h-0 overflow-hidden flex flex-col p-2 lg:p-4 custom-scrollbar relative bg-slate-800/90 lg:bg-transparent border-t border-slate-700 lg:border-t-0 shadow-lg lg:shadow-none z-20">
       <h3 className="hidden lg:flex text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 sticky top-0 bg-slate-800/90 py-2 backdrop-blur-sm z-20 justify-between">
         <span>Game Record</span>
       </h3>
 
-      <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full flex-1 min-h-0">
+      <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-20 items-center lg:items-stretch w-full flex-1 min-h-0 relative">
         <div className="flex-shrink-0 w-auto min-w-[100px] lg:min-w-0 lg:w-full flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mb-0 lg:mb-2 h-[42px] lg:h-auto group">
           <div className="flex items-center w-full h-full">
             <button
               id="move-btn-0"
               onClick={() => jumpToMove(0)}
               className={`flex-1 py-1 lg:py-2 px-2 lg:px-3 text-left transition-colors flex justify-between items-center h-full ${
-                currentMoveIndex === 0 ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'
+                currentMoveIndex === 0 && isMainLine ? 'bg-blue-600/30 text-blue-300 font-bold' : 'hover:bg-slate-700'
               } ${isSyncMode && syncTargetIndex === 0 ? 'text-indigo-300 font-bold' : ''}`}
             >
               <span className="flex items-center gap-1.5 lg:gap-2 whitespace-nowrap text-xs lg:text-sm">
@@ -128,12 +201,17 @@ export const MoveList: React.FC<MoveListProps> = ({
               const blackMoveIndex = rowIndex * 2 + 2;
               const whiteMove = history[whiteMoveIndex - 1];
               const blackMove = history[blackMoveIndex - 1];
+              
+              const prevWhiteNodeId = mainLineIds[whiteMoveIndex - 1];
+              const whiteNodeId = mainLineIds[whiteMoveIndex];
+              const prevBlackNodeId = mainLineIds[blackMoveIndex - 1];
+              const blackNodeId = mainLineIds[blackMoveIndex];
 
               const renderMoveBtn = (move: Move | undefined, mIndex: number) => {
                 if (!move) return <div className="hidden lg:block lg:flex-1" />;
 
                 const isTarget = isSyncMode && syncTargetIndex === mIndex;
-                const isCurrent = currentMoveIndex === mIndex;
+                const isCurrent = currentMoveIndex === mIndex && isMainLine;
                 const hasTime = timeMap[mIndex] !== undefined;
                 const isEditing = editingMoveIndex === mIndex;
 
@@ -218,12 +296,31 @@ export const MoveList: React.FC<MoveListProps> = ({
                     {renderMoveBtn(whiteMove, whiteMoveIndex)}
                     {renderMoveBtn(blackMove, blackMoveIndex)}
                   </div>
+                  
+                  <div className="hidden lg:block lg:col-span-2">
+                     {prevWhiteNodeId && whiteNodeId && renderVariations(prevWhiteNodeId, whiteNodeId)}
+                  </div>
+                  <div className="hidden lg:block lg:col-span-2">
+                     {prevBlackNodeId && blackNodeId && renderVariations(prevBlackNodeId, blackNodeId)}
+                  </div>
                 </div>
               );
             })}
+            
+            {history.length > 0 && (
+              <div className="hidden lg:block lg:col-span-2">
+                 {renderVariations(mainLineIds[mainLineIds.length - 1], 'none')}
+              </div>
+            )}
           </div>
         )}
       </div>
+      
+      {!isMainLine && (
+        <div className="lg:hidden absolute bottom-0 left-0 w-full bg-indigo-600/90 text-indigo-100 text-xs text-center py-1.5 font-semibold z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-all">
+          Exploring Variation (Play video to return)
+        </div>
+      )}
     </div>
   );
 };

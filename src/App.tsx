@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LZString from 'lz-string';
 import { Chess } from 'chess.js';
 
@@ -89,19 +89,25 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const lastTimeRef = useRef(0);
+
   useEffect(() => {
     if (!gameSync.player) return;
     
     const interval = setInterval(async () => {
+      let isPlaying = false;
       if (typeof gameSync.player.getPlayerState === 'function') {
-        gameSync.setIsPlaying(gameSync.player.getPlayerState() === 1);
+        isPlaying = gameSync.player.getPlayerState() === 1;
+        gameSync.setIsPlaying(isPlaying);
       }
 
       const time = await gameSync.player.getCurrentTime();
+      const isScrubbing = Math.abs(time - lastTimeRef.current) > 1.5 && !isPlaying;
+      lastTimeRef.current = time;
       
       if (gameSync.isSeekingRef.current) return;
       
-      const { history, timeMap } = gameSync.stateRef.current;
+      const { history, timeMap, mainLineIds, currentNodeId } = gameSync.stateRef.current;
       
       let latestValidMove = 0;
       for (let i = 1; i <= history.length; i++) {
@@ -112,8 +118,11 @@ function App() {
         }
       }
       
+      const isMainLine = mainLineIds.includes(currentNodeId);
+
       gameSync.setCurrentMoveIndex((prev) => {
-        if (prev !== latestValidMove) {
+        // Jump if the main line index has naturally progressed OR if we should snap back from a variation
+        if (prev !== latestValidMove || (!isMainLine && (isPlaying || isScrubbing))) {
           gameSync.jumpToMoveSilently(latestValidMove);
           return latestValidMove;
         }
@@ -302,12 +311,16 @@ function App() {
               <MoveList
                 currentMoveIndex={gameSync.currentMoveIndex}
                 jumpToMove={gameSync.jumpToMove}
+                jumpToNode={gameSync.jumpToNode}
                 isSyncMode={gameSync.isSyncMode}
                 syncTargetIndex={gameSync.syncTargetIndex}
                 timeMap={gameSync.timeMap}
                 editingMoveIndex={gameSync.editingMoveIndex}
                 setEditingMoveIndex={gameSync.setEditingMoveIndex}
                 history={gameSync.history}
+                gameTree={gameSync.gameTree}
+                mainLineIds={gameSync.mainLineIds}
+                currentNodeId={gameSync.currentNodeId}
                 player={gameSync.player}
                 updateMoveVTime={gameSync.updateMoveVTime}
               />
@@ -321,12 +334,16 @@ function App() {
             <MoveList
               currentMoveIndex={gameSync.currentMoveIndex}
               jumpToMove={gameSync.jumpToMove}
+              jumpToNode={gameSync.jumpToNode}
               isSyncMode={gameSync.isSyncMode}
               syncTargetIndex={gameSync.syncTargetIndex}
               timeMap={gameSync.timeMap}
               editingMoveIndex={gameSync.editingMoveIndex}
               setEditingMoveIndex={gameSync.setEditingMoveIndex}
               history={gameSync.history}
+              gameTree={gameSync.gameTree}
+              mainLineIds={gameSync.mainLineIds}
+              currentNodeId={gameSync.currentNodeId}
               player={gameSync.player}
               updateMoveVTime={gameSync.updateMoveVTime}
             />

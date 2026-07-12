@@ -4,6 +4,14 @@ import type { Move } from 'chess.js';
 import LZString from 'lz-string';
 import type { ToastType } from './useToast';
 
+export interface GameNode {
+  id: string;
+  move?: Move;
+  fen: string;
+  parentId: string | null;
+  childrenIds: string[];
+}
+
 export function useGameSync(showToast: (msg: string, type?: ToastType) => void) {
   const [videoId, setVideoId] = useState<string>('');
   const [pgnString, setPgnString] = useState<string>('');
@@ -13,6 +21,12 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [history, setHistory] = useState<Move[]>([]);
   
+  const [gameTree, setGameTree] = useState<Record<string, GameNode>>({
+    'root': { id: 'root', fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', parentId: null, childrenIds: [] }
+  });
+  const [mainLineIds, setMainLineIds] = useState<string[]>(['root']);
+  const [currentNodeId, setCurrentNodeId] = useState<string>('root');
+
   const [player, setPlayer] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
@@ -32,15 +46,18 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     history,
     currentMoveIndex,
     timeMap,
-    initialFen
+    initialFen,
+    gameTree,
+    mainLineIds,
+    currentNodeId
   });
 
   const isSeekingRef = useRef(false);
   const seekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    stateRef.current = { player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen };
-  }, [player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen]);
+    stateRef.current = { player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen, gameTree, mainLineIds, currentNodeId };
+  }, [player, isSyncMode, syncTargetIndex, pgnString, history, currentMoveIndex, timeMap, initialFen, gameTree, mainLineIds, currentNodeId]);
 
   const extractTimeMap = (pgn: string) => {
     const tempGame = new Chess();
@@ -73,24 +90,53 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
       setPgnString(text);
       masterGameRef.current = new Chess();
       masterGameRef.current.loadPgn(text);
-      setHistory(masterGameRef.current.history({ verbose: true }) as Move[]);
-      
-      const extractedTimeMap = extractTimeMap(text);
-      setTimeMap(extractedTimeMap);
+      const moves = masterGameRef.current.history({ verbose: true }) as Move[];
+      setHistory(moves);
       
       const resetGame = new Chess();
       resetGame.loadPgn(text);
       while(resetGame.history().length > 0) {
         resetGame.undo();
       }
-      setInitialFen(resetGame.fen());
-      setCurrentFen(resetGame.fen());
+      const rootFen = resetGame.fen();
+      setInitialFen(rootFen);
+      setCurrentFen(rootFen);
       setCurrentMoveIndex(0);
+      
+      const newTree: Record<string, GameNode> = {
+        'root': { id: 'root', fen: rootFen, parentId: null, childrenIds: [] }
+      };
+      const newMainLineIds = ['root'];
+      let currId = 'root';
+      const tempGame = new Chess(rootFen);
+
+      for (let i = 0; i < moves.length; i++) {
+        const move = moves[i];
+        const newId = `m${i + 1}`;
+        tempGame.move(move);
+        newTree[currId].childrenIds.push(newId);
+        newTree[newId] = {
+          id: newId,
+          move,
+          fen: tempGame.fen(),
+          parentId: currId,
+          childrenIds: []
+        };
+        newMainLineIds.push(newId);
+        currId = newId;
+      }
+
+      setGameTree(newTree);
+      setMainLineIds(newMainLineIds);
+      setCurrentNodeId('root');
+
+      const extractedTimeMap = extractTimeMap(text);
+      setTimeMap(extractedTimeMap);
       
       if (isSyncMode) {
         let nextIndex = 1;
         while(extractedTimeMap[nextIndex] !== undefined) nextIndex++;
-        setSyncTargetIndex(nextIndex <= masterGameRef.current.history().length ? nextIndex : null);
+        setSyncTargetIndex(nextIndex <= moves.length ? nextIndex : null);
       }
     } catch (e) {
       console.error('Failed to parse PGN', e);
@@ -101,13 +147,8 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
   const updateUrlWithNewPgn = useCallback((newPgn: string) => {
     const url = new URL(window.location.href);
     const compressed = LZString.compressToEncodedURIComponent(newPgn);
-    
     url.searchParams.set('data', compressed);
-    
-    if (url.searchParams.has('pgn')) {
-      url.searchParams.delete('pgn');
-    }
-
+    if (url.searchParams.has('pgn')) url.searchParams.delete('pgn');
     window.history.replaceState({}, '', url);
     setInputRawPgn(newPgn);
   }, []);
@@ -120,7 +161,6 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     for (let i = 0; i < fullHistory.length; i++) {
       newGame.move(fullHistory[i]);
       let c = comments.find(x => x.fen === newGame.fen())?.comment || '';
-      
       if (i + 1 === moveIndex) {
         if (c.includes('[%vtime')) {
           c = c.replace(/\[%vtime [\d.]+\]/, `[%vtime ${videoTime.toFixed(3)}]`);
@@ -137,7 +177,6 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
         newGame.header(key, headers[key] as string);
       }
     }
-
     if (moveIndex === 0) {
       newGame.header('StartTime', videoTime.toFixed(3));
     }
@@ -164,14 +203,13 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
       pieceStr = arg3;
     }
 
-    const { isSyncMode, player, currentMoveIndex, timeMap } = stateRef.current;
-    if (!isSyncMode || !player) return false;
+    const { isSyncMode, player, timeMap, history, gameTree, mainLineIds, currentNodeId } = stateRef.current;
+    if (!player) return false;
 
-    const totalMoves = masterGameRef.current.history().length;
-    for (let i = 0; i < totalMoves - currentMoveIndex; i++) {
-      masterGameRef.current.undo();
-    }
+    const node = gameTree[currentNodeId];
+    if (!node) return false;
 
+    const tempGame = new Chess(node.fen);
     try {
       let promo = 'q';
       if (typeof pieceStr === 'string' && pieceStr.length >= 2) {
@@ -181,7 +219,7 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
         promo = 'q';
       }
 
-      const move = masterGameRef.current.move({
+      const move = tempGame.move({
         from: sourceSquare,
         to: targetSquare,
         promotion: promo,
@@ -193,29 +231,79 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
         return false;
       }
 
-      Promise.resolve(player.getCurrentTime()).then((time: any) => {
-        const timeNum = Number(time);
-        const comment = masterGameRef.current.getComment() || '';
-        masterGameRef.current.setComment(`${comment} [%vtime ${timeNum.toFixed(3)}]`.trim());
+      const existingChildId = node.childrenIds.find(id => gameTree[id].move?.san === move.san);
+      
+      let nextId = existingChildId;
+      const newTree = { ...gameTree };
+      let newMainLineIds = [...mainLineIds];
+      const newHistory = [...history];
+      let appendedToMainLine = false;
 
-        const newTimeMap = { ...timeMap };
-        for (let i = currentMoveIndex + 1; i <= totalMoves; i++) {
-          delete newTimeMap[i];
+      if (!existingChildId) {
+        nextId = `v_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const newNode: GameNode = {
+          id: nextId,
+          move,
+          fen: tempGame.fen(),
+          parentId: currentNodeId,
+          childrenIds: []
+        };
+        newTree[currentNodeId] = { ...node, childrenIds: [...node.childrenIds, nextId] };
+        newTree[nextId] = newNode;
+
+        if (currentNodeId === mainLineIds[mainLineIds.length - 1]) {
+          appendedToMainLine = true;
+          newMainLineIds.push(nextId);
+          newHistory.push(move);
+          
+          while (masterGameRef.current.history().length > newHistory.length - 1) {
+             masterGameRef.current.undo();
+          }
+          masterGameRef.current.move(move);
+
+          Promise.resolve(player.getCurrentTime()).then((time: any) => {
+            const timeNum = Number(time);
+            const comment = masterGameRef.current.getComment() || '';
+            masterGameRef.current.setComment(`${comment} [%vtime ${timeNum.toFixed(3)}]`.trim());
+
+            const newTimeMap = { ...timeMap };
+            newTimeMap[newHistory.length] = timeNum;
+
+            const newPgn = masterGameRef.current.pgn();
+            setPgnString(newPgn);
+            setTimeMap(newTimeMap);
+            updateUrlWithNewPgn(newPgn);
+            setSyncTargetIndex(null);
+          });
         }
-        newTimeMap[currentMoveIndex + 1] = timeNum;
+      }
 
-        const newPgn = masterGameRef.current.pgn();
-        setPgnString(newPgn);
-        setTimeMap(newTimeMap);
-        setHistory(masterGameRef.current.history({ verbose: true }) as Move[]);
-        
-        setCurrentFen(masterGameRef.current.fen());
-        setCurrentMoveIndex(currentMoveIndex + 1);
-        updateUrlWithNewPgn(newPgn);
-        
-        setSyncTargetIndex(null);
-      });
+      setGameTree(newTree);
+      if (appendedToMainLine || (existingChildId && newMainLineIds.includes(existingChildId) && currentNodeId === mainLineIds[mainLineIds.length - 1])) {
+         if (newMainLineIds.length !== mainLineIds.length) {
+            setMainLineIds(newMainLineIds);
+            setHistory(newHistory);
+         }
+         setCurrentMoveIndex(newMainLineIds.indexOf(nextId!));
+      } else {
+         const mLineIdx = newMainLineIds.indexOf(nextId!);
+         if (mLineIdx !== -1) {
+            setCurrentMoveIndex(mLineIdx);
+         } else {
+            if (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) {
+               player.pauseVideo();
+            }
+            // Prevent App.tsx from immediately snapping back while video is pausing
+            isSeekingRef.current = true;
+            if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+            seekTimeoutRef.current = setTimeout(() => {
+               isSeekingRef.current = false;
+            }, 1000);
+         }
+      }
 
+      setCurrentNodeId(nextId!);
+      setCurrentFen(tempGame.fen());
       return true;
     } catch (e: any) {
       console.warn('Invalid move:', e.message);
@@ -225,7 +313,7 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
   }, [showToast, updateUrlWithNewPgn]);
 
   const truncateHistory = useCallback(() => {
-    const { currentMoveIndex, history, timeMap } = stateRef.current;
+    const { currentMoveIndex, history, timeMap, mainLineIds } = stateRef.current;
     if (history.length === 0) return;
     
     if (!window.confirm('Are you sure you want to clear this move and all subsequent moves and markers?')) return;
@@ -249,49 +337,67 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     setCurrentFen(masterGameRef.current.fen());
     updateUrlWithNewPgn(newPgn);
     
+    const newMainLineIds = mainLineIds.slice(0, targetKeepMoves + 1);
+    setMainLineIds(newMainLineIds);
+    setCurrentNodeId(newMainLineIds[newMainLineIds.length - 1]);
+    
     setSyncTargetIndex(null);
   }, [updateUrlWithNewPgn]);
 
   const updateStartTimeAnchor = useCallback(async () => {
     if (!player) return;
     const time = await player.getCurrentTime();
-    
     masterGameRef.current.header('StartTime', time.toFixed(3));
-    
     const newPgn = masterGameRef.current.pgn();
     setPgnString(newPgn);
     updateUrlWithNewPgn(newPgn);
-    
     setTimeMap(prev => ({ ...prev, 0: time }));
     showToast('Game start time marked!', 'success');
   }, [player, updateUrlWithNewPgn, showToast]);
 
-  const jumpToMoveSilently = useCallback((index: number) => {
-    if (index === 0) {
-      setCurrentFen(stateRef.current.initialFen);
-    } else {
-      const hist = masterGameRef.current.history({ verbose: true }) as Move[];
-      if (hist[index - 1]) {
-        setCurrentFen(hist[index - 1].after);
+  const jumpToNodeSilently = useCallback((nodeId: string) => {
+    const node = stateRef.current.gameTree[nodeId];
+    if (node) {
+      setCurrentFen(node.fen);
+      setCurrentNodeId(nodeId);
+      const mLineIdx = stateRef.current.mainLineIds.indexOf(nodeId);
+      if (mLineIdx !== -1) {
+         setCurrentMoveIndex(mLineIdx);
       }
     }
   }, []);
 
-  const jumpToMove = useCallback((index: number) => {
-    jumpToMoveSilently(index);
-    setCurrentMoveIndex(index);
+  const jumpToNode = useCallback((nodeId: string) => {
+    jumpToNodeSilently(nodeId);
     
-    if (stateRef.current.timeMap[index] !== undefined && player) {
+    const mLineIdx = stateRef.current.mainLineIds.indexOf(nodeId);
+    if (mLineIdx !== -1 && stateRef.current.timeMap[mLineIdx] !== undefined && stateRef.current.player) {
       isSeekingRef.current = true;
       if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
       
-      player.seekTo(stateRef.current.timeMap[index], true);
+      stateRef.current.player.seekTo(stateRef.current.timeMap[mLineIdx], true);
       
       seekTimeoutRef.current = setTimeout(() => {
         isSeekingRef.current = false;
       }, 1000);
+    } else if (mLineIdx === -1 && stateRef.current.player) {
+      if (typeof stateRef.current.player.getPlayerState === 'function' && stateRef.current.player.getPlayerState() === 1) {
+        stateRef.current.player.pauseVideo();
+      }
     }
-  }, [jumpToMoveSilently, player]);
+  }, [jumpToNodeSilently]);
+
+  const jumpToMoveSilently = useCallback((index: number) => {
+     if (index >= 0 && index < stateRef.current.mainLineIds.length) {
+         jumpToNodeSilently(stateRef.current.mainLineIds[index]);
+     }
+  }, [jumpToNodeSilently]);
+
+  const jumpToMove = useCallback((index: number) => {
+     if (index >= 0 && index < stateRef.current.mainLineIds.length) {
+         jumpToNode(stateRef.current.mainLineIds[index]);
+     }
+  }, [jumpToNode]);
 
   const toggleSyncMode = useCallback(() => {
     const newMode = !isSyncMode;
@@ -322,6 +428,9 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     currentFen, setCurrentFen,
     currentMoveIndex, setCurrentMoveIndex,
     history, setHistory,
+    gameTree, setGameTree,
+    mainLineIds, setMainLineIds,
+    currentNodeId, setCurrentNodeId,
     player, setPlayer,
     isPlaying, setIsPlaying,
     timeMap, setTimeMap,
@@ -341,6 +450,8 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     updateStartTimeAnchor,
     jumpToMoveSilently,
     jumpToMove,
+    jumpToNodeSilently,
+    jumpToNode,
     toggleSyncMode,
     togglePlay,
   };
