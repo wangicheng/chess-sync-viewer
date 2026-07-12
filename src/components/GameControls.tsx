@@ -3,7 +3,8 @@ import { SkipBack, ChevronLeft, Play, Pause, ChevronRight, SkipForward } from 'l
 
 interface GameControlsProps {
   jumpToMove: (index: number) => void;
-  currentMoveIndex: number;
+  stepBackward: () => void;
+  stepForward: () => void;
   historyLength: number;
   togglePlay: () => void;
   isPlaying: boolean;
@@ -12,7 +13,8 @@ interface GameControlsProps {
 
 export const GameControls: React.FC<GameControlsProps> = ({
   jumpToMove,
-  currentMoveIndex,
+  stepBackward,
+  stepForward,
   historyLength,
   togglePlay,
   isPlaying,
@@ -27,7 +29,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
         <SkipBack className="w-4 h-4 lg:w-5 lg:h-5" />
       </button>
       <button
-        onClick={() => jumpToMove(Math.max(0, currentMoveIndex - 1))}
+        onClick={stepBackward}
         className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors"
         title="Previous Move"
       >
@@ -41,7 +43,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
         {isPlaying ? <Pause className="w-5 h-5 lg:w-6 lg:h-6" /> : <Play className="w-5 h-5 lg:w-6 lg:h-6" />}
       </button>
       <button
-        onClick={() => jumpToMove(Math.min(historyLength, currentMoveIndex + 1))}
+        onClick={stepForward}
         className="p-1.5 lg:p-2 text-slate-400 hover:text-white transition-colors"
         title="Next Move"
       >

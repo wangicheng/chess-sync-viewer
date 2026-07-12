@@ -203,7 +203,7 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
       pieceStr = arg3;
     }
 
-    const { isSyncMode, player, timeMap, history, gameTree, mainLineIds, currentNodeId } = stateRef.current;
+    const { player, timeMap, history, gameTree, mainLineIds, currentNodeId } = stateRef.current;
     if (!player) return false;
 
     const node = gameTree[currentNodeId];
@@ -399,6 +399,25 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
      }
   }, [jumpToNode]);
 
+  const stepBackward = useCallback(() => {
+    const node = stateRef.current.gameTree[stateRef.current.currentNodeId];
+    if (node && node.parentId) {
+      jumpToNode(node.parentId);
+    }
+  }, [jumpToNode]);
+
+  const stepForward = useCallback(() => {
+    const node = stateRef.current.gameTree[stateRef.current.currentNodeId];
+    if (node && node.childrenIds.length > 0) {
+      const mainLineChild = node.childrenIds.find(id => stateRef.current.mainLineIds.includes(id));
+      if (mainLineChild) {
+        jumpToNode(mainLineChild);
+      } else {
+        jumpToNode(node.childrenIds[0]);
+      }
+    }
+  }, [jumpToNode]);
+
   const toggleSyncMode = useCallback(() => {
     const newMode = !isSyncMode;
     setIsSyncMode(newMode);
@@ -450,6 +469,8 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     updateStartTimeAnchor,
     jumpToMoveSilently,
     jumpToMove,
+    stepBackward,
+    stepForward,
     jumpToNodeSilently,
     jumpToNode,
     toggleSyncMode,

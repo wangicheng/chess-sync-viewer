@@ -40,10 +40,22 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowLeft' || e.key === '<' || e.key === ',') {
+        e.preventDefault();
+        gameSync.stepBackward();
+        return;
+      }
+      
+      if (e.key === 'ArrowRight' || e.key === '>' || e.key === '.') {
+        e.preventDefault();
+        gameSync.stepForward();
+        return;
+      }
+
       const { isSyncMode, player, syncTargetIndex, history } = gameSync.stateRef.current;
       if (!isSyncMode || !player || syncTargetIndex === null) return;
-      
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -64,7 +76,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameSync.stateRef, gameSync.updateMoveVTime, gameSync.jumpToMove, gameSync.setSyncTargetIndex, gameSync.setIsSyncMode, showToast]);
+  }, [gameSync.stateRef, gameSync.updateMoveVTime, gameSync.jumpToMove, gameSync.setSyncTargetIndex, gameSync.setIsSyncMode, showToast, gameSync.stepBackward, gameSync.stepForward]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -297,7 +309,8 @@ function App() {
             <div className={layoutMode === 'overlay' ? 'lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 w-full flex justify-center pb-2 lg:pb-0' : 'w-full flex justify-center pb-2 lg:pb-0'}>
               <GameControls
                 jumpToMove={gameSync.jumpToMove}
-                currentMoveIndex={gameSync.currentMoveIndex}
+                stepBackward={gameSync.stepBackward}
+                stepForward={gameSync.stepForward}
                 historyLength={gameSync.history.length}
                 togglePlay={gameSync.togglePlay}
                 isPlaying={gameSync.isPlaying}

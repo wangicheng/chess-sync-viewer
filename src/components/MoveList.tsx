@@ -289,19 +289,19 @@ export const MoveList: React.FC<MoveListProps> = ({
 
               return (
                 <div key={rowIndex} className="contents group">
+                  <div className="hidden lg:block lg:col-span-2">
+                     {prevWhiteNodeId && whiteNodeId && renderVariations(prevWhiteNodeId, whiteNodeId)}
+                  </div>
+                  <div className="hidden lg:block lg:col-span-2">
+                     {prevBlackNodeId && blackNodeId && renderVariations(prevBlackNodeId, blackNodeId)}
+                  </div>
+                  
                   <div className="flex-shrink-0 flex flex-row lg:col-span-2 border border-slate-700/50 lg:border-0 lg:border-b lg:border-slate-700/50 bg-slate-800/20 lg:bg-transparent rounded lg:rounded-none hover:bg-slate-700/10 items-center h-[42px] lg:h-auto">
                     <div className="w-8 lg:w-10 py-1.5 lg:py-2 px-1 lg:px-2 text-slate-500 flex-shrink-0 text-center lg:text-right text-xs lg:pt-2.5 bg-slate-800/50 lg:bg-transparent h-full flex items-center justify-center border-r border-slate-700/30 lg:border-0">
                       {rowIndex + 1}.
                     </div>
                     {renderMoveBtn(whiteMove, whiteMoveIndex)}
                     {renderMoveBtn(blackMove, blackMoveIndex)}
-                  </div>
-                  
-                  <div className="hidden lg:block lg:col-span-2">
-                     {prevWhiteNodeId && whiteNodeId && renderVariations(prevWhiteNodeId, whiteNodeId)}
-                  </div>
-                  <div className="hidden lg:block lg:col-span-2">
-                     {prevBlackNodeId && blackNodeId && renderVariations(prevBlackNodeId, blackNodeId)}
                   </div>
                 </div>
               );
