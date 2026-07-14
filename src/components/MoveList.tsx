@@ -124,7 +124,7 @@ export const MoveList: React.FC<MoveListProps> = ({
 
   return (
     <div className="flex-none lg:flex-1 h-[72px] lg:h-auto min-h-[72px] lg:min-h-0 overflow-hidden flex flex-col p-2 lg:p-4 custom-scrollbar relative bg-slate-800/90 lg:bg-transparent border-t border-slate-700 lg:border-t-0 shadow-lg lg:shadow-none z-20">
-      <h3 className="hidden lg:flex text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 sticky top-0 bg-slate-800/90 py-2 backdrop-blur-sm z-20 justify-between">
+      <h3 className="hidden lg:flex text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 justify-between">
         <span>Game Record</span>
       </h3>
 

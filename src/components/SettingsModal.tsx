@@ -51,15 +51,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl ring-1 ring-white/10 max-h-[90vh] overflow-y-auto">
+      <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl ring-1 ring-white/10 h-[600px] max-h-[90vh] flex flex-col">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           <Settings className="w-5 h-5 text-blue-400" />
           Settings
         </h2>
-        <div className="flex border-b border-slate-700 mb-6">
+        <div className="flex border-b border-slate-700 mb-6 overflow-x-auto flex-nowrap hide-scrollbar">
           <button
             onClick={() => setActiveTab('source')}
-            className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-2 px-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
               activeTab === 'source' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
@@ -67,7 +67,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('clock')}
-            className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-2 px-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
               activeTab === 'clock' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
@@ -75,7 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('engine')}
-            className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-2 px-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
               activeTab === 'engine' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
@@ -83,7 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('board')}
-            className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-2 px-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
               activeTab === 'board' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
@@ -91,7 +91,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('export')}
-            className={`pb-2 px-4 text-sm font-medium transition-colors border-b-2 ${
+            className={`pb-2 px-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
               activeTab === 'export' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
@@ -99,7 +99,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div className="p-4 flex-1 overflow-y-auto space-y-6">
+        <div className="py-2 flex-1 overflow-y-auto flex flex-col">
+          <div className="space-y-6 flex-1">
           {activeTab === 'source' && (
             <div className="space-y-4">
               <div>
@@ -279,8 +280,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'export' && (
             <VideoExport history={history} boardSettings={boardSettings} timeMap={timeMap} />
           )}
+          </div>
 
-          <div className="pt-2 flex justify-end gap-3 border-t border-slate-700/50 mt-4">
+          <div className="pt-4 flex justify-end gap-3 border-t border-slate-700/50 mt-6 shrink-0">
             {(videoId || pgnString) && (
               <button
                 onClick={() => setIsUrlModalOpen(false)}
