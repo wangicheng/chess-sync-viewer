@@ -18,6 +18,8 @@ import { GameControls } from './components/GameControls';
 import { MoveList } from './components/MoveList';
 import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/ToastContainer';
+import { GameResultModal } from './components/GameResultModal';
+import { ConfirmTruncateModal } from './components/ConfirmTruncateModal';
 
 function App() {
   const { toasts, showToast } = useToast();
@@ -34,9 +36,21 @@ function App() {
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'source' | 'clock' | 'engine' | 'board' | 'export'>('source');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('sync');
+  const [isGameResultModalOpen, setIsGameResultModalOpen] = useState(false);
+  const [isTruncateModalOpen, setIsTruncateModalOpen] = useState(false);
+
+  const handleSaveGameResult = async (result: string, termination: string, recordEndTime: boolean) => {
+    let endTime: number | undefined;
+    if (recordEndTime && gameSync.player) {
+      endTime = await gameSync.player.getCurrentTime();
+    }
+    gameSync.setGameResult(result, termination, endTime);
+  };
   
   const interactable = useInteractable();
   const splitPane = useSplitPane(500, 320, () => window.innerWidth - 400);
+
+  const movesToDeleteCount = Math.max(0, gameSync.history.length - Math.max(0, gameSync.currentMoveIndex - 1));
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -216,6 +230,8 @@ function App() {
         setIsUrlModalOpen={setIsUrlModalOpen}
         layoutMode={layoutMode}
         setLayoutMode={setLayoutMode}
+        gameResult={gameSync.masterGameRef.current.header().Result ?? undefined}
+        gameTermination={gameSync.masterGameRef.current.header().Termination ?? undefined}
       />
 
       <main className={`flex-1 overflow-hidden ${
@@ -236,8 +252,9 @@ function App() {
               isSyncMode={gameSync.isSyncMode}
               updateStartTimeAnchor={gameSync.updateStartTimeAnchor}
               history={gameSync.history}
-              truncateHistory={gameSync.truncateHistory}
+              onOpenTruncateModal={() => setIsTruncateModalOpen(true)}
               layoutMode={layoutMode}
+              onOpenGameResultModal={() => setIsGameResultModalOpen(true)}
             />
           </div>
         </div>
@@ -336,6 +353,8 @@ function App() {
                 currentNodeId={gameSync.currentNodeId}
                 player={gameSync.player}
                 updateMoveVTime={gameSync.updateMoveVTime}
+                updateEndTime={gameSync.updateEndTime}
+                masterGameRef={gameSync.masterGameRef}
               />
             </div>
           )}
@@ -359,6 +378,8 @@ function App() {
               currentNodeId={gameSync.currentNodeId}
               player={gameSync.player}
               updateMoveVTime={gameSync.updateMoveVTime}
+              updateEndTime={gameSync.updateEndTime}
+              masterGameRef={gameSync.masterGameRef}
             />
           </div>
         )}
@@ -393,6 +414,24 @@ function App() {
         handleApplyUrl={handleApplyUrl}
         history={gameSync.history}
         timeMap={gameSync.timeMap}
+      />
+
+      <GameResultModal
+        isOpen={isGameResultModalOpen}
+        onClose={() => setIsGameResultModalOpen(false)}
+        onSave={handleSaveGameResult}
+        initialResult={gameSync.masterGameRef.current.header().Result ?? '*'}
+        initialTermination={gameSync.masterGameRef.current.header().Termination ?? 'Normal'}
+      />
+
+      <ConfirmTruncateModal
+        isOpen={isTruncateModalOpen}
+        onClose={() => setIsTruncateModalOpen(false)}
+        onConfirm={() => {
+          gameSync.truncateHistory();
+          setIsTruncateModalOpen(false);
+        }}
+        movesToDeleteCount={movesToDeleteCount}
       />
 
       <ToastContainer toasts={toasts} />

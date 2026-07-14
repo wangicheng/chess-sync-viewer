@@ -33,7 +33,7 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
   const [timeMap, setTimeMap] = useState<Record<number, number>>({});
   const [isSyncMode, setIsSyncMode] = useState(false);
   const [syncTargetIndex, setSyncTargetIndex] = useState<number | null>(null);
-  const [editingMoveIndex, setEditingMoveIndex] = useState<number | null>(null);
+  const [editingMoveIndex, setEditingMoveIndex] = useState<number | 'end' | null>(null);
 
   const [inputRawPgn, setInputRawPgn] = useState('');
   const [inputVideoId, setInputVideoId] = useState('');
@@ -320,8 +320,6 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     const { currentMoveIndex, history, timeMap, mainLineIds } = stateRef.current;
     if (history.length === 0) return;
     
-    if (!window.confirm('Are you sure you want to clear this move and all subsequent moves and markers?')) return;
-    
     const targetKeepMoves = Math.max(0, currentMoveIndex - 1);
     const totalMoves = masterGameRef.current.history().length;
     for (let i = 0; i < totalMoves - targetKeepMoves; i++) {
@@ -358,6 +356,25 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     setTimeMap(prev => ({ ...prev, 0: time }));
     showToast('Game start time marked!', 'success');
   }, [player, updateUrlWithNewPgn, showToast]);
+
+  const setGameResult = useCallback((result: string, termination: string, endTime?: number) => {
+    if (result) masterGameRef.current.header('Result', result);
+    if (termination) masterGameRef.current.header('Termination', termination);
+    if (endTime !== undefined) {
+      masterGameRef.current.header('EndTime', endTime.toFixed(3));
+    }
+    const newPgn = masterGameRef.current.pgn();
+    setPgnString(newPgn);
+    updateUrlWithNewPgn(newPgn);
+    showToast('Game result saved!', 'success');
+  }, [updateUrlWithNewPgn, showToast]);
+
+  const updateEndTime = useCallback((newTime: number) => {
+    masterGameRef.current.header('EndTime', newTime.toFixed(3));
+    const newPgn = masterGameRef.current.pgn();
+    setPgnString(newPgn);
+    updateUrlWithNewPgn(newPgn);
+  }, [updateUrlWithNewPgn]);
 
   const jumpToNodeSilently = useCallback((nodeId: string) => {
     const node = stateRef.current.gameTree[nodeId];
@@ -471,6 +488,8 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     handlePieceDrop,
     truncateHistory,
     updateStartTimeAnchor,
+    setGameResult,
+    updateEndTime,
     jumpToMoveSilently,
     jumpToMove,
     stepBackward,

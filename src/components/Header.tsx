@@ -12,6 +12,8 @@ interface HeaderProps {
   setIsUrlModalOpen: (open: boolean) => void;
   layoutMode: LayoutMode;
   setLayoutMode: (mode: LayoutMode) => void;
+  gameResult?: string;
+  gameTermination?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,14 +25,23 @@ export const Header: React.FC<HeaderProps> = ({
   setIsUrlModalOpen,
   layoutMode,
   setLayoutMode,
+  gameResult,
+  gameTermination,
 }) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 bg-slate-800 border-b border-slate-700 shadow-md z-10">
       <div className="flex items-center gap-3">
         <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="logo" className="w-8 h-8" />
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300 hidden sm:block">
-          ChessSync Viewer
-        </h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300 hidden sm:block">
+            ChessSync Viewer
+          </h1>
+          {gameResult && gameResult !== '*' && (
+            <span className="text-sm font-medium text-slate-400 hidden md:block">
+              {gameResult} {gameTermination && gameTermination !== 'Normal' ? `(${gameTermination})` : ''}
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1.5 lg:gap-4">
         <div className="flex bg-slate-900/80 p-1 rounded-lg border border-slate-700/50 shadow-inner items-center">
@@ -96,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={() => setIsUrlModalOpen(true)}
-          className="flex items-center gap-1.5 p-2 sm:px-3 lg:px-4 sm:py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 p-2 sm:px-3 lg:px-4 sm:py-1.5 lg:py-2 text-sm font-medium rounded-md bg-slate-700 hover:bg-slate-600 transition-colors shadow-sm text-slate-200"
           title="Settings"
         >
           <Settings className="w-5 h-5 sm:w-4 sm:h-4" />

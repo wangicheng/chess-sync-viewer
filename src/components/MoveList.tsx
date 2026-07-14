@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Clock, Check, Edit3, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Move } from 'chess.js';
+import { Clock, Check, Edit3, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
+import { Chess, type Move } from 'chess.js';
 import type { GameNode } from '../hooks/useGameSync';
 
 interface MoveListProps {
@@ -10,14 +10,16 @@ interface MoveListProps {
   isSyncMode: boolean;
   syncTargetIndex: number | null;
   timeMap: Record<number, number>;
-  editingMoveIndex: number | null;
-  setEditingMoveIndex: (index: number | null) => void;
+  editingMoveIndex: number | 'end' | null;
+  setEditingMoveIndex: (index: number | 'end' | null) => void;
   history: Move[];
   gameTree: Record<string, GameNode>;
   mainLineIds: string[];
   currentNodeId: string;
   player: any;
   updateMoveVTime: (moveIndex: number, videoTime: number) => void;
+  updateEndTime: (newTime: number) => void;
+  masterGameRef: React.MutableRefObject<Chess>;
 }
 
 export const MoveList: React.FC<MoveListProps> = ({
@@ -35,6 +37,8 @@ export const MoveList: React.FC<MoveListProps> = ({
   currentNodeId,
   player,
   updateMoveVTime,
+  updateEndTime,
+  masterGameRef,
 }) => {
   useEffect(() => {
     const el = document.getElementById(`move-btn-${currentMoveIndex}`);
@@ -114,6 +118,9 @@ export const MoveList: React.FC<MoveListProps> = ({
   };
 
   const isMainLine = mainLineIds.includes(currentNodeId);
+  
+  const rawEndTime = masterGameRef.current.header().EndTime;
+  const gameEndTime = rawEndTime ? parseFloat(rawEndTime) : undefined;
 
   return (
     <div className="flex-none lg:flex-1 h-[72px] lg:h-auto min-h-[72px] lg:min-h-0 overflow-hidden flex flex-col p-2 lg:p-4 custom-scrollbar relative bg-slate-800/90 lg:bg-transparent border-t border-slate-700 lg:border-t-0 shadow-lg lg:shadow-none z-20">
@@ -310,6 +317,74 @@ export const MoveList: React.FC<MoveListProps> = ({
             {history.length > 0 && (
               <div className="hidden lg:block lg:col-span-2">
                  {renderVariations(mainLineIds[mainLineIds.length - 1], 'none')}
+              </div>
+            )}
+            
+            {gameEndTime !== undefined && (
+              <div className="flex-shrink-0 w-auto min-w-[100px] lg:min-w-0 lg:w-full lg:col-span-2 flex flex-col border border-slate-700/50 bg-slate-800/30 rounded mt-0 lg:mt-2 h-[42px] lg:h-auto group">
+                <div className="flex items-center w-full h-full">
+                  <button
+                    onClick={() => {
+                      if (player) player.seekTo(gameEndTime, true);
+                    }}
+                    className={`flex-1 py-1 lg:py-2 px-2 lg:px-3 text-left transition-colors flex justify-between items-center h-full hover:bg-slate-700`}
+                  >
+                    <span className="flex items-center gap-1.5 lg:gap-2 whitespace-nowrap text-xs lg:text-sm">
+                      <Flag className="w-3.5 h-3.5" /> <span className="hidden lg:inline">Game End Time</span>
+                      <span className="lg:hidden">End</span>
+                    </span>
+                    {isSyncMode && editingMoveIndex !== 'end' && (
+                      <span className="text-xs text-slate-500 font-normal ml-2">{formatTime(gameEndTime)}</span>
+                    )}
+                  </button>
+
+                  {isSyncMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingMoveIndex(editingMoveIndex === 'end' ? null : 'end');
+                      }}
+                      className={`px-2 py-1 lg:py-2 transition-colors ${
+                        editingMoveIndex === 'end'
+                          ? 'text-green-400 opacity-100'
+                          : 'text-slate-500 hover:text-blue-400 hover:bg-slate-700 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100'
+                      } opacity-100 lg:opacity-0`}
+                      title={editingMoveIndex === 'end' ? 'Finish Adjustment' : 'Adjust Time'}
+                    >
+                      {editingMoveIndex === 'end' ? <Check className="w-3.5 h-3.5" /> : <Edit3 className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+                </div>
+
+                {editingMoveIndex === 'end' && isSyncMode && (
+                  <div className="absolute lg:relative -top-10 lg:top-0 left-0 lg:left-auto z-20 w-full bg-slate-900 border lg:border-t border-slate-700 p-2 flex flex-col gap-2 shadow-xl lg:shadow-inner rounded lg:rounded-none">
+                    <div className="flex items-center justify-between gap-1">
+                      <button
+                        onClick={() => {
+                          const newTime = Math.max(0, gameEndTime - 0.033);
+                          updateEndTime(newTime);
+                          if (player) player.seekTo(newTime, true);
+                        }}
+                        className="p-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </button>
+
+                      <span className="text-xs text-blue-400 font-bold">{formatTime(gameEndTime)}</span>
+
+                      <button
+                        onClick={() => {
+                          const newTime = gameEndTime + 0.033;
+                          updateEndTime(newTime);
+                          if (player) player.seekTo(newTime, true);
+                        }}
+                        className="p-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
