@@ -188,10 +188,11 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     updateUrlWithNewPgn(newPgn);
   }, [updateUrlWithNewPgn]);
 
-  const handlePieceDrop = useCallback((arg1: any, arg2?: any, arg3?: any) => {
+  const handlePieceDrop = useCallback((arg1: any, arg2?: any, arg3?: any, arg4?: any) => {
     let sourceSquare: string;
     let targetSquare: string;
     let pieceStr: string;
+    let explicitPromo: string | undefined;
 
     if (typeof arg1 === 'object' && arg1 !== null && 'sourceSquare' in arg1) {
       sourceSquare = arg1.sourceSquare;
@@ -201,6 +202,7 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
       sourceSquare = arg1;
       targetSquare = arg2;
       pieceStr = arg3;
+      if (typeof arg4 === 'string') explicitPromo = arg4;
     }
 
     const { player, timeMap, history, gameTree, mainLineIds, currentNodeId } = stateRef.current;
@@ -212,7 +214,9 @@ export function useGameSync(showToast: (msg: string, type?: ToastType) => void) 
     const tempGame = new Chess(node.fen);
     try {
       let promo = 'q';
-      if (typeof pieceStr === 'string' && pieceStr.length >= 2) {
+      if (explicitPromo && ['q', 'r', 'b', 'n'].includes(explicitPromo.toLowerCase())) {
+        promo = explicitPromo.toLowerCase();
+      } else if (typeof pieceStr === 'string' && pieceStr.length >= 2) {
         promo = pieceStr[1].toLowerCase();
       }
       if (!['q', 'r', 'b', 'n'].includes(promo)) {
